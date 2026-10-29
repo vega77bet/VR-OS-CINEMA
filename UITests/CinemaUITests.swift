@@ -7,6 +7,10 @@ final class CinemaUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         XCTAssertTrue(app.buttons["session.toggle"].waitForExistence(timeout: 20))
+        expectation(for: NSPredicate { _, _ in app.frame.width > app.frame.height }, evaluatedWith: app)
+        waitForExpectations(timeout: 10)
+        XCTAssertTrue(app.buttons["session.toggle"].isHittable)
+        XCTAssertTrue(app.buttons["seat"].isHittable)
         attach(app, "06-app-sala")
         app.buttons["chair"].tap()
         XCTAssertTrue(app.buttons["session.toggle"].exists)
@@ -28,6 +32,11 @@ final class CinemaUITests: XCTestCase {
         waitForExpectations(timeout: 12)
         app.buttons["stereo"].tap()
         XCTAssertEqual(app.buttons.matching(identifier: "stereo.eye").count, 2)
+        let leftControl = app.buttons.matching(identifier: "stereo.eye").element(boundBy: 0)
+        let rightControl = app.buttons.matching(identifier: "stereo.eye").element(boundBy: 1)
+        XCTAssertTrue(leftControl.isHittable)
+        XCTAssertTrue(rightControl.isHittable)
+        XCTAssertEqual(rightControl.frame.midX - leftControl.frame.midX, app.frame.width / 2, accuracy: 3)
         attach(app, "07-app-binocular")
         app.buttons.matching(identifier: "stereo.eye").element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["stereo"].waitForExistence(timeout: 5))
@@ -44,5 +53,9 @@ final class CinemaUITests: XCTestCase {
         image.name = name
         image.lifetime = .keepAlways
         add(image)
+        let screen = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screen.name = name + "-full-display"
+        screen.lifetime = .keepAlways
+        add(screen)
     }
 }

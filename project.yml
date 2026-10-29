@@ -21,6 +21,13 @@ targets:
       path: Cinema/Info.plist
       properties:
         CFBundleDisplayName: VR-OS Cinema
+        UIUserInterfaceStyle: Dark
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Cinema
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
         UILaunchScreen:
           UIColorName: ''
         UISupportedInterfaceOrientations:
