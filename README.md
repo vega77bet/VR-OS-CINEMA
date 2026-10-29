@@ -45,6 +45,20 @@ usando **a mesma CinemaScene do aplicativo**. As prévias não são imagens conc
 O IPA só é empacotado se build, testes e exportação passarem. Ele não é assinado;
 a instalação exige assinatura por uma ferramenta apropriada, como SideStore.
 
+## Validação da prévia 0.1.0
+
+[Execução aprovada](https://github.com/vega77bet/VR-OS-CINEMA/actions/runs/40975141896),
+referente ao código `eed7bb7362bf53e0c76a54c97a551ac0411da4e2`:
+build Release para iPhone, cinco testes de cena/estado e um teste de navegação
+completos, sem falhas no simulador iPhone 16. A troca de vistas preserva o
+horizonte e o teste de interface verifica paisagem, controles acessíveis e
+distribuição dos controles entre os dois olhos.
+
+As capturas `full-display` do artefato de interface mostram a tela completa.
+O recorte de `XCUIApplication.screenshot()` pode ficar incorreto em paisagem;
+para revisão visual, usar as capturas de `XCUIScreen.main` (`full-display`).
+Essa limitação do arquivo de captura não é um recorte do aplicativo.
+
 ## Organização
 
 - `Cinema/CinemaScene.swift`: sala, luzes, telão e câmeras.
@@ -53,6 +67,7 @@ a instalação exige assinatura por uma ferramenta apropriada, como SideStore.
 - `Cinema/VisualState.swift`: escala e transições reversíveis.
 - `Cinema/CinemaViewController.swift`: render, ciclo de vida e navegação visual.
 - `Cinema/CinemaHUD.swift`: controles de prévia, com versão por olho.
+- `Cinema/SceneDelegate.swift`: janela vinculada à cena e dimensionamento em paisagem.
 - `Tests/` e `UITests/`: verificações e galeria nativa.
 
 ## Verificação no aparelho
