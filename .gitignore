@@ -1,0 +1,10 @@
+build/
+test-build/
+*.xcodeproj/
+*.xcresult/
+*.ipa
+Payload/
+Previews/
+Cinema/Info.plist
+.DS_Store
+__pycache__/

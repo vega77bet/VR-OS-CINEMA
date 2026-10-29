@@ -1,0 +1,59 @@
+name: VROSCinema
+options:
+  bundleIdPrefix: com.vega77bet
+  deploymentTarget:
+    iOS: '16.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    MARKETING_VERSION: '0.1.0'
+    CURRENT_PROJECT_VERSION: 1
+    TARGETED_DEVICE_FAMILY: 1
+    CODE_SIGNING_ALLOWED: NO
+    GENERATE_INFOPLIST_FILE: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  VROSCinema:
+    type: application
+    platform: iOS
+    sources: [Cinema]
+    info:
+      path: Cinema/Info.plist
+      properties:
+        CFBundleDisplayName: VR-OS Cinema
+        UILaunchScreen:
+          UIColorName: ''
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIRequiresFullScreen: true
+        UIStatusBarHidden: true
+        UIViewControllerBasedStatusBarAppearance: true
+        UIApplicationSupportsIndirectInputEvents: true
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vega77bet.vroscinema
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  CinemaTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: VROSCinema
+  CinemaUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: VROSCinema
+schemes:
+  VROSCinema:
+    build:
+      targets:
+        VROSCinema: all
+    test:
+      gatherCoverageData: false
+      targets:
+        - CinemaTests
+        - CinemaUITests

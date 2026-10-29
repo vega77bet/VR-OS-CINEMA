@@ -1,0 +1,72 @@
+name: Cinema - build and native visual tests
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: cinema-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cinema:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project and app icon
+        run: |
+          swift Tools/MakeIcon.swift
+          xcodegen generate
+      - name: Build iPhone application
+        run: |
+          set -o pipefail
+          xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tee build.log
+      - name: Run native scene and UI tests
+        id: tests
+        run: |
+          set -o pipefail
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; ds=[d for devices in json.load(sys.stdin)["devices"].values() for d in devices]; print(next(d["udid"] for d in ds if d["name"] == "iPhone 16"))')
+          xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath test-build -resultBundlePath CinemaTests.xcresult -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test | tee tests.log
+      - name: Export native gallery
+        if: ${{ always() && steps.tests.outcome != 'skipped' }}
+        run: python3 Tools/export-previews.py CinemaTests.xcresult Previews
+      - name: Upload native gallery
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cinema-native-previews
+          path: Previews
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cinema-test-evidence
+          path: |
+            CinemaTests.xcresult
+            build.log
+            tests.log
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Package unsigned preview
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/VROSCinema.app Payload/
+          zip -qry VR-OS-Cinema-0.1.0-visual-unsigned.ipa Payload
+      - name: Upload iPhone preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: VR-OS-Cinema-visual-IPA
+          path: VR-OS-Cinema-0.1.0-visual-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
