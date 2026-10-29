@@ -24,6 +24,21 @@ final class SceneTests: XCTestCase {
         XCTAssertEqual(room.yaw, 0)
     }
 
+    func testViewChangesPreserveLevelHorizon() {
+        let room = CinemaScene()
+        let original = room.cameraRig.simdOrientation.vector
+        for _ in 0..<10 {
+            for view in [RoomView.room, .chair, .seat] {
+                room.setView(view)
+                XCTAssertEqual(room.cameraRig.simdWorldTransform.columns.0.y, 0, accuracy: 0.00001,
+                               "Changing views must not accumulate camera roll")
+            }
+        }
+        let restored = room.cameraRig.simdOrientation.vector
+        XCTAssertEqual(abs(simd_dot(original, restored)), 1, accuracy: 0.00001)
+        XCTAssertEqual(room.centerEye.camera?.fieldOfView, 86)
+    }
+
     func testNativeRenderedGallery() throws {
         let room = CinemaScene()
         let device = try XCTUnwrap(MTLCreateSystemDefaultDevice(), "Metal is required for authentic scene previews")

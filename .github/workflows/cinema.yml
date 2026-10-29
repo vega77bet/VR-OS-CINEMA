@@ -37,7 +37,7 @@ jobs:
           set -o pipefail
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; ds=[d for devices in json.load(sys.stdin)["devices"].values() for d in devices]; print(next(d["udid"] for d in ds if d["name"] == "iPhone 16"))')
           echo "CINEMA_SIMULATOR_ID=$DEVICE_ID" >> "$GITHUB_ENV"
-          xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath test-build -resultBundlePath SceneTests.xcresult -parallel-testing-enabled NO -only-testing:CinemaTests -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO test | tee scene-tests.log
+          xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath test-build -resultBundlePath SceneTests.xcresult -parallel-testing-enabled NO -only-testing:CinemaTests -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- test | tee scene-tests.log
       - name: Export native gallery
         if: ${{ always() && steps.scenes.outcome != 'skipped' }}
         run: python3 Tools/export-previews.py SceneTests.xcresult Previews
@@ -51,10 +51,15 @@ jobs:
           retention-days: 30
       - name: Test native touch navigation
         id: navigation
-        timeout-minutes: 5
+        timeout-minutes: 8
         run: |
           set -o pipefail
-          xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -destination "platform=iOS Simulator,id=$CINEMA_SIMULATOR_ID" -derivedDataPath test-build -resultBundlePath NavigationTests.xcresult -parallel-testing-enabled NO -only-testing:CinemaUITests -test-timeouts-enabled YES -default-test-execution-time-allowance 90 -maximum-test-execution-time-allowance 120 CODE_SIGNING_ALLOWED=NO test | tee navigation-tests.log
+          xcrun simctl shutdown "$CINEMA_SIMULATOR_ID" || true
+          xcrun simctl boot "$CINEMA_SIMULATOR_ID"
+          xcrun simctl bootstatus "$CINEMA_SIMULATOR_ID" -b
+          XCTESTRUN_FILE=$(python3 -c 'from pathlib import Path; print(next(Path("test-build/Build/Products").glob("*.xctestrun")))')
+          xcodebuild test-without-building -xctestrun "$XCTESTRUN_FILE" -destination "platform=iOS Simulator,id=$CINEMA_SIMULATOR_ID" -resultBundlePath NavigationTests.xcresult -parallel-testing-enabled NO -only-testing:CinemaUITests -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 180 | tee navigation-tests.log
+          python3 -c 'from pathlib import Path; import re; log=Path("navigation-tests.log").read_text(); assert re.search(r"Test Case .*testTourLightingAndBinocularReturn.* passed", log), "The UI test must run and pass; an empty test selection is not success"'
       - name: Export UI attachments
         if: ${{ always() && steps.navigation.outcome != 'skipped' }}
         run: xcrun xcresulttool export attachments --path NavigationTests.xcresult --output-path InterfacePreviews

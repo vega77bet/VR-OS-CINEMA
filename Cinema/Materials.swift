@@ -3,8 +3,8 @@ import SceneKit
 
 enum Palette {
     static let ink = UIColor(red: 0.025, green: 0.05, blue: 0.065, alpha: 1)
-    static let teal = UIColor(red: 0.075, green: 0.23, blue: 0.25, alpha: 1)
-    static let copper = UIColor(red: 0.66, green: 0.40, blue: 0.23, alpha: 1)
+    static let teal = UIColor(red: 0.035, green: 0.145, blue: 0.17, alpha: 1)
+    static let copper = UIColor(red: 0.48, green: 0.29, blue: 0.17, alpha: 1)
     static let amber = UIColor(red: 1, green: 0.69, blue: 0.32, alpha: 1)
     static let ice = UIColor(red: 0.33, green: 0.77, blue: 0.82, alpha: 1)
     static let pearl = UIColor(red: 0.92, green: 0.92, blue: 0.87, alpha: 1)
@@ -35,18 +35,18 @@ final class CinemaMaterials {
     let sessionArtwork: UIImage
 
     init() {
-        upholstery = Self.pbr(Palette.teal, roughness: 0.81)
+        upholstery = Self.pbr(Palette.teal, roughness: 0.94)
         upholstery.diffuse.contents = Textures.leather(quilted: true)
-        cushion = Self.pbr(Palette.teal, roughness: 0.76)
+        cushion = Self.pbr(Palette.teal, roughness: 0.91)
         cushion.diffuse.contents = Textures.leather(quilted: false)
-        shell = Self.pbr(UIColor(red: 0.045, green: 0.08, blue: 0.1, alpha: 1), roughness: 0.38, metal: 0.25)
-        copper = Self.pbr(Palette.copper, roughness: 0.31, metal: 0.78)
+        shell = Self.pbr(UIColor(red: 0.03, green: 0.055, blue: 0.07, alpha: 1), roughness: 0.62, metal: 0.15)
+        copper = Self.pbr(Palette.copper, roughness: 0.46, metal: 0.68)
         black = Self.pbr(Palette.ink, roughness: 0.7)
         carpet = Self.pbr(UIColor(white: 0.065, alpha: 1), roughness: 1)
         carpet.diffuse.contents = Textures.fabric()
         wall = Self.pbr(UIColor(red: 0.065, green: 0.10, blue: 0.12, alpha: 1), roughness: 0.94)
         ribs = Self.pbr(UIColor(red: 0.11, green: 0.16, blue: 0.18, alpha: 1), roughness: 0.47, metal: 0.3)
-        floor = Self.pbr(UIColor(red: 0.075, green: 0.09, blue: 0.10, alpha: 1), roughness: 0.34, metal: 0.27)
+        floor = Self.pbr(UIColor(red: 0.04, green: 0.06, blue: 0.075, alpha: 1), roughness: 0.72, metal: 0.05)
         piping = Self.pbr(UIColor(red: 0.27, green: 0.40, blue: 0.40, alpha: 1), roughness: 0.6)
         cupLight = Self.glow(Palette.amber, intensity: 0.65)
         loungeArtwork = Textures.screen(titles: true)
@@ -133,8 +133,8 @@ enum Textures {
 
     static func environment() -> UIImage {
         image(CGSize(width: 512, height: 256)) { context in
-            let colors = [UIColor(white: 0.34, alpha: 1).cgColor,
-                          UIColor(red: 0.20, green: 0.28, blue: 0.30, alpha: 1).cgColor,
+            let colors = [UIColor(white: 0.16, alpha: 1).cgColor,
+                          UIColor(red: 0.07, green: 0.12, blue: 0.14, alpha: 1).cgColor,
                           UIColor(red: 0.035, green: 0.045, blue: 0.06, alpha: 1).cgColor]
             let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: [0, 0.5, 1])!
             context.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: 0, y: 256), options: [])

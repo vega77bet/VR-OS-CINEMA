@@ -15,7 +15,7 @@ final class CinemaScene {
     private(set) var pitch = 0.0
     private(set) var heightOffset = 0.0
     private(set) var seatNodes: [SCNNode] = []
-    private var accents: [(SCNMaterial, Int)] = []
+    private var accents: [(SCNMaterial, CGFloat, Int)] = []
     private var lamps: [(SCNLight, CGFloat, Int)] = []
     private var baseOrientation = simd_quatf()
     private var basePosition = SIMD3<Float>(repeating: 0)
@@ -23,7 +23,7 @@ final class CinemaScene {
     init() {
         scene.background.contents = UIColor.black
         scene.lightingEnvironment.contents = Textures.environment()
-        scene.lightingEnvironment.intensity = 1.0
+        scene.lightingEnvironment.intensity = 0.55
         buildCameras()
         buildArchitecture()
         buildSeating()
@@ -43,8 +43,8 @@ final class CinemaScene {
             camera.fieldOfView = 86
             camera.wantsHDR = true
             camera.wantsExposureAdaptation = false
-            camera.exposureOffset = 0.35
-            camera.bloomIntensity = 0.18
+            camera.exposureOffset = 0
+            camera.bloomIntensity = 0.10
             camera.bloomThreshold = 0.95
             camera.bloomBlurRadius = 6
             camera.vignettingIntensity = 0.12
@@ -76,11 +76,14 @@ final class CinemaScene {
             target = SCNVector3(0, 3.9, -8.4)
         case .chair:
             // Front three-quarter view of the first row's central chair.
-            position = SCNVector3(1.7, 2.1, -7.6)
-            target = SCNVector3(0, 0.91, -5.4)
+            position = SCNVector3(1.8, 1.7, -7.9)
+            target = SCNVector3(0, 0.92, -5.4)
         }
         cameraRig.position = position
-        cameraRig.look(at: target)
+        // look(at:) reuses the node's current worldUp and accumulates roll
+        // when switching viewpoints. Always rebuild against the room's vertical.
+        cameraRig.look(at: target, up: SCNVector3(0, 1, 0), localFront: SCNVector3(0, 0, -1))
+        for eye in [centerEye, leftEye, rightEye] { eye.camera?.fieldOfView = view == .chair ? 60 : 86 }
         basePosition = cameraRig.simdPosition
         baseOrientation = cameraRig.simdOrientation
         updateCamera()
@@ -106,7 +109,7 @@ final class CinemaScene {
 
     private func accent(_ color: UIColor, group: Int, intensity: CGFloat = 1) -> SCNMaterial {
         let material = CinemaMaterials.glow(color, intensity: intensity)
-        accents.append((material, group))
+        accents.append((material, intensity, group))
         return material
     }
 
@@ -204,7 +207,7 @@ final class CinemaScene {
     }
 
     private func addLight(type: SCNLight.LightType, color: UIColor, intensity: CGFloat,
-                          at position: SCNVector3, target: SCNVector3? = nil, group: Int) {
+                          at position: SCNVector3, target: SCNVector3? = nil, group: Int, shadow: Bool = false) {
         let light = SCNLight()
         light.type = type
         light.color = color
@@ -213,7 +216,14 @@ final class CinemaScene {
         light.attenuationEndDistance = 35
         light.spotInnerAngle = 55
         light.spotOuterAngle = 115
-        light.castsShadow = false
+        light.castsShadow = shadow
+        if shadow {
+            light.shadowMapSize = CGSize(width: 1024, height: 1024)
+            light.shadowRadius = 4
+            light.shadowSampleCount = 8
+            light.shadowColor = UIColor.black.withAlphaComponent(0.62)
+            light.shadowBias = 0.025
+        }
         let node = SCNNode()
         node.light = light
         node.position = position
@@ -223,15 +233,15 @@ final class CinemaScene {
     }
 
     private func buildLighting() {
-        addLight(type: .ambient, color: UIColor(red: 0.64, green: 0.76, blue: 0.79, alpha: 1), intensity: 370, at: SCNVector3Zero, group: 4)
-        addLight(type: .omni, color: Palette.pearl, intensity: 1600, at: SCNVector3(0, 8.7, 1), group: 2)
-        addLight(type: .spot, color: Palette.amber, intensity: 1900, at: SCNVector3(0, 8.8, -7), target: SCNVector3(0, 1.5, 1), group: 0)
+        addLight(type: .ambient, color: UIColor(red: 0.64, green: 0.76, blue: 0.79, alpha: 1), intensity: 140, at: SCNVector3Zero, group: 4)
+        addLight(type: .omni, color: Palette.pearl, intensity: 520, at: SCNVector3(0, 8.7, 1), group: 2)
+        addLight(type: .spot, color: Palette.amber, intensity: 700, at: SCNVector3(0, 8.8, -7), target: SCNVector3(0, 1.5, 1), group: 0, shadow: true)
         for side in [-1.0, 1.0] {
-            addLight(type: .omni, color: Palette.amber, intensity: 1050, at: SCNVector3(side * 9.6, 5, -2), group: 1)
-            addLight(type: .omni, color: Palette.ice, intensity: 680, at: SCNVector3(side * 8.5, 5.8, 7), group: 2)
+            addLight(type: .omni, color: Palette.amber, intensity: 340, at: SCNVector3(side * 9.6, 5, -2), group: 1)
+            addLight(type: .omni, color: Palette.ice, intensity: 230, at: SCNVector3(side * 8.5, 5.8, 7), group: 2)
         }
         // The screen is the remaining light source in the session preview.
-        addLight(type: .spot, color: Palette.ice, intensity: 1200, at: SCNVector3(0, 5.5, -10.8), target: SCNVector3(0, 2, 4), group: 5)
+        addLight(type: .spot, color: Palette.ice, intensity: 450, at: SCNVector3(0, 5.5, -10.8), target: SCNVector3(0, 2, 4), group: 5)
     }
 
     func applyDarkness(_ value: Double) {
@@ -240,10 +250,10 @@ final class CinemaScene {
         let factors = [lighting.front, lighting.sides, lighting.ceiling, lighting.guides, lighting.fill, 1.0]
         SCNTransaction.begin()
         SCNTransaction.animationDuration = 0
-        for (material, group) in accents { material.emission.intensity = CGFloat(factors[group]) }
+        for (material, base, group) in accents { material.emission.intensity = base * CGFloat(factors[group]) }
         for (light, base, group) in lamps { light.intensity = base * CGFloat(factors[group]) }
         materials.cupLight.emission.intensity = CGFloat(0.65 * lighting.guides)
-        scene.lightingEnvironment.intensity = CGFloat(0.14 + 0.86 * lighting.fill)
+        scene.lightingEnvironment.intensity = CGFloat(0.55 * (0.14 + 0.86 * lighting.fill))
         SCNTransaction.commit()
     }
 

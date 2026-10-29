@@ -7,7 +7,7 @@ enum ChairFactory {
         let prototype = SCNNode()
         prototype.name = "Orion"
         let body = SCNNode()
-        Geometry.box(body, "pedestal", [0.87, 0.14, 0.82], [0, 0.12, 0.12], m.black, radius: 0.06)
+        Geometry.box(body, "pedestal", [0.87, 0.26, 0.82], [0, 0.10, 0.12], m.black, radius: 0.06)
         Geometry.box(body, "copper-plinth", [1.12, 0.055, 1.13], [0, 0.24, 0], m.copper, radius: 0.025)
         Geometry.box(body, "shell-base", [1.17, 0.25, 1.08], [0, 0.39, 0], m.shell, radius: 0.10)
         Geometry.box(body, "seat-cushion", [1.02, 0.24, 0.91], [0, 0.61, -0.14], m.cushion, radius: 0.105)
