@@ -30,15 +30,16 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tee build.log
-      - name: Run native scene and UI tests
-        id: tests
+      - name: Run native scene tests
+        id: scenes
         run: |
           set -o pipefail
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; ds=[d for devices in json.load(sys.stdin)["devices"].values() for d in devices]; print(next(d["udid"] for d in ds if d["name"] == "iPhone 16"))')
-          xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath test-build -resultBundlePath CinemaTests.xcresult -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test | tee tests.log
+          echo "CINEMA_SIMULATOR_ID=$DEVICE_ID" >> "$GITHUB_ENV"
+          xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath test-build -resultBundlePath SceneTests.xcresult -parallel-testing-enabled NO -only-testing:CinemaTests -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO test | tee scene-tests.log
       - name: Export native gallery
-        if: ${{ always() && steps.tests.outcome != 'skipped' }}
-        run: python3 Tools/export-previews.py CinemaTests.xcresult Previews
+        if: ${{ always() && steps.scenes.outcome != 'skipped' }}
+        run: python3 Tools/export-previews.py SceneTests.xcresult Previews
       - name: Upload native gallery
         if: always()
         uses: actions/upload-artifact@v4
@@ -47,15 +48,33 @@ jobs:
           path: Previews
           if-no-files-found: warn
           retention-days: 30
+      - name: Test native touch navigation
+        id: navigation
+        run: |
+          set -o pipefail
+          xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -destination "platform=iOS Simulator,id=$CINEMA_SIMULATOR_ID" -derivedDataPath test-build -resultBundlePath NavigationTests.xcresult -parallel-testing-enabled NO -only-testing:CinemaUITests -test-timeouts-enabled YES -default-test-execution-time-allowance 90 -maximum-test-execution-time-allowance 120 CODE_SIGNING_ALLOWED=NO test | tee navigation-tests.log
+      - name: Export UI attachments
+        if: ${{ always() && steps.navigation.outcome != 'skipped' }}
+        run: xcrun xcresulttool export attachments --path NavigationTests.xcresult --output-path InterfacePreviews
+      - name: Upload UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cinema-interface-previews
+          path: InterfacePreviews
+          if-no-files-found: warn
+          retention-days: 30
       - name: Upload test evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Cinema-test-evidence
           path: |
-            CinemaTests.xcresult
+            SceneTests.xcresult
+            NavigationTests.xcresult
             build.log
-            tests.log
+            scene-tests.log
+            navigation-tests.log
           if-no-files-found: ignore
           retention-days: 14
       - name: Package unsigned preview

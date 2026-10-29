@@ -65,7 +65,8 @@ final class CinemaViewController: UIViewController {
             renderer.pointOfView = stereo ? (eye == 0 ? cinema.leftEye : cinema.rightEye) : cinema.centerEye
             renderer.preferredFramesPerSecond = 60
             renderer.antialiasingMode = .multisampling2X
-            renderer.isPlaying = active
+            renderer.isPlaying = active && !lastSettled
+            renderer.rendersContinuously = false
             renderer.autoenablesDefaultLighting = false
             renderer.allowsCameraControl = false
             renderer.accessibilityIdentifier = stereo ? "viewport.eye.\(eye)" : "viewport.mono"
@@ -117,9 +118,11 @@ final class CinemaViewController: UIViewController {
             cinema.showSessionArtwork(dark)
             phase.text = "transition"
             setHUDHidden(false)
+            startAnimationClock()
         default: break
         }
         updateHUD()
+        renderers.forEach { $0.setNeedsDisplay() }
     }
 
     @objc private func pan(_ gesture: UIPanGestureRecognizer) {
@@ -130,6 +133,7 @@ final class CinemaViewController: UIViewController {
         let translation = gesture.translation(in: view)
         cinema.look(yaw: Double(lookStart.x) - Double(translation.x - dragStart.x) * 0.0035,
                     pitch: Double(lookStart.y) - Double(translation.y - dragStart.y) * 0.0035)
+        renderers.forEach { $0.setNeedsDisplay() }
     }
 
     @objc private func toggleHUD() { setHUDHidden(!hiddenHUD) }
@@ -145,11 +149,15 @@ final class CinemaViewController: UIViewController {
     @objc private func tick(_ link: CADisplayLink) {
         if !lastSettled {
             cinema.applyDarkness(transition.value(at: link.timestamp))
+            renderers.forEach { $0.setNeedsDisplay() }
             if transition.isFinished(at: link.timestamp) {
                 lastSettled = true
                 phase.text = dark ? "screening" : "lounge"
                 updateHUD()
                 if dark && !UIAccessibility.isVoiceOverRunning { setHUDHidden(true) }
+                displayLink?.invalidate()
+                displayLink = nil
+                renderers.forEach { $0.isPlaying = false }
             }
         }
     }
@@ -164,8 +172,13 @@ final class CinemaViewController: UIViewController {
     @objc private func resume() {
         guard viewIfLoaded?.window != nil else { return }
         active = true
+        renderers.forEach { $0.setNeedsDisplay() }
+        if !lastSettled { startAnimationClock() }
+    }
+
+    private func startAnimationClock() {
+        guard active && displayLink == nil else { return }
         renderers.forEach { $0.isPlaying = true }
-        guard displayLink == nil else { return }
         // A weak proxy prevents CADisplayLink from retaining the controller.
         let proxy = DisplayLinkProxy(owner: self)
         let link = CADisplayLink(target: proxy, selector: #selector(DisplayLinkProxy.fire(_:)))

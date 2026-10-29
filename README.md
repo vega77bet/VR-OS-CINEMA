@@ -16,7 +16,8 @@ poltronas originais Orion, telão curvo e iluminação de início de sessão.
 - Botão Altura alterna a elevação do observador; Centralizar retorna ao ponto inicial.
 - Prévia binocular com câmeras paralelas separadas por 64 mm e HUD dentro de cada olho.
 - Texturas e arte Aurora originais geradas em código, funcionamento inteiramente offline.
-- Ícone próprio, respeito a Reduzir Movimento e suspensão do render ao sair do aplicativo.
+- Ícone próprio, respeito a Reduzir Movimento e renderização sob demanda: a sala
+  estática não mantém um relógio de animação ativo. O render também para ao sair do aplicativo.
 
 ## Limites desta etapa
 
