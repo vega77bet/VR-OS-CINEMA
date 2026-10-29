@@ -101,9 +101,10 @@ final class CinemaHUD: UIView {
         configuration.baseForegroundColor = Palette.pearl
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 7, leading: compact ? 7 : 10, bottom: 5, trailing: compact ? 7 : 10)
         configuration.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(pointSize: compact ? 13 : 16, weight: .light)
+        let labelSize: CGFloat = compact ? 8 : 9
         configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var attributes = incoming
-            attributes.font = .systemFont(ofSize: compact ? 8 : 9, weight: .medium)
+            attributes.font = .systemFont(ofSize: labelSize, weight: .medium)
             return attributes
         }
         button.configuration = configuration
