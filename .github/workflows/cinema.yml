@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: cinema-${{ github.ref }}
+  group: aurora-visual-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -32,6 +32,7 @@ jobs:
           xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tee build.log
       - name: Run native scene tests
         id: scenes
+        timeout-minutes: 8
         run: |
           set -o pipefail
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; ds=[d for devices in json.load(sys.stdin)["devices"].values() for d in devices]; print(next(d["udid"] for d in ds if d["name"] == "iPhone 16"))')
@@ -50,6 +51,7 @@ jobs:
           retention-days: 30
       - name: Test native touch navigation
         id: navigation
+        timeout-minutes: 5
         run: |
           set -o pipefail
           xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -destination "platform=iOS Simulator,id=$CINEMA_SIMULATOR_ID" -derivedDataPath test-build -resultBundlePath NavigationTests.xcresult -parallel-testing-enabled NO -only-testing:CinemaUITests -test-timeouts-enabled YES -default-test-execution-time-allowance 90 -maximum-test-execution-time-allowance 120 CODE_SIGNING_ALLOWED=NO test | tee navigation-tests.log
