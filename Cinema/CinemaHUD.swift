@@ -84,7 +84,7 @@ final class CinemaHUD: UIView {
 
         addButton("seat", symbol: "viewfinder", label: "Centralizar", short: "Centro")
         addButton("room", symbol: "building.2", label: "Ver sala", short: "Sala")
-        addButton("chair", symbol: "chair.lounge", label: "Ver poltrona", short: "Poltrona")
+        addButton("chair", symbol: "chair.lounge", label: "Ver poltrona", short: "Orion")
         addButton("height", symbol: "arrow.up.and.down", label: "Altura", short: "Altura")
         addButton("motion", symbol: "gyroscope", label: "Movimento", short: "Movimento")
         addButton("movie", symbol: "film", label: "Filme", short: "Filme")
