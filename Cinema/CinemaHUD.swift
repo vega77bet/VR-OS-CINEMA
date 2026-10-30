@@ -149,7 +149,7 @@ final class CinemaHUD: UIView {
     private func addButton(_ action: String, symbol: String, label: String, short: String) {
         let button = UIButton(type: .system)
         var configuration = UIButton.Configuration.plain()
-        configuration.title = short
+        configuration.title = action == "stereo" && !compact ? label : short
         configuration.image = UIImage(systemName: symbol)
         configuration.imagePadding = 4
         configuration.imagePlacement = .top
