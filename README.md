@@ -50,12 +50,12 @@ a instalação exige assinatura por uma ferramenta apropriada, como SideStore.
 
 ## Validação da prévia 0.1.0
 
-[Execução aprovada](https://github.com/vega77bet/VR-OS-CINEMA/actions/runs/40975141896),
-referente ao código `eed7bb7362bf53e0c76a54c97a551ac0411da4e2`:
-build Release para iPhone, cinco testes de cena/estado e um teste de navegação
-completos, sem falhas no simulador iPhone 16. A troca de vistas preserva o
-horizonte e o teste de interface verifica paisagem, controles acessíveis e
-distribuição dos controles entre os dois olhos.
+[Execução aprovada](https://github.com/vega77bet/VR-OS-CINEMA/actions/runs/40980378056),
+referente ao código `58104356d99d3a50353091cba1b731a0ce792cf1`:
+build Release para iPhone, oito testes nativos e um teste de navegação completos,
+sem falhas no simulador iPhone 16. A validação cobre o mapeamento de movimento
+nos dois landscapes, a pose 3DoF e o fallback de toque do simulador, além de
+preservar o horizonte, verificar os controles e a separação entre os dois olhos.
 
 As capturas `full-display` do artefato de interface mostram a tela completa.
 O recorte de `XCUIApplication.screenshot()` pode ficar incorreto em paisagem;
