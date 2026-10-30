@@ -15,6 +15,7 @@ enum CinemaLayout {
     static let seatSpacing = 2.1
     static let defaultEyeHeight = 3.18
     static let defaultEyeZ = 2.62
+    static let motionPitchLimit = 1.35
     static let dimmingDuration = 3.6
 
     static func floorHeight(row: Int) -> Double { Double(row) * rowRise }

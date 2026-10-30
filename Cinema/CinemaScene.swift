@@ -19,6 +19,7 @@ final class CinemaScene {
     private var lamps: [(SCNLight, CGFloat, Int)] = []
     private var baseOrientation = simd_quatf()
     private var basePosition = SIMD3<Float>(repeating: 0)
+    private var motionOrientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
 
     init() {
         scene.background.contents = UIColor.black
@@ -65,6 +66,7 @@ final class CinemaScene {
         heightOffset = 0
         yaw = 0
         pitch = 0
+        motionOrientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
         let position: SCNVector3
         let target: SCNVector3
         switch view {
@@ -100,11 +102,25 @@ final class CinemaScene {
         updateCamera()
     }
 
+    /// Applies a 3DoF head pose after the current room viewpoint. The motion
+    /// pose is kept separate from touch look so that touch remains a reliable
+    /// fallback on devices without a gyroscope.
+    func setMotion(yaw: Double, pitch: Double, roll: Double) {
+        let clampedYaw = CinemaLayout.clamp(yaw, -.pi, .pi)
+        let clampedPitch = CinemaLayout.clamp(pitch, -CinemaLayout.motionPitchLimit, CinemaLayout.motionPitchLimit)
+        let clampedRoll = CinemaLayout.clamp(roll, -.pi, .pi)
+        let horizontal = simd_quatf(angle: Float(clampedYaw), axis: SIMD3<Float>(0, 1, 0))
+        let vertical = simd_quatf(angle: Float(clampedPitch), axis: SIMD3<Float>(1, 0, 0))
+        let tilt = simd_quatf(angle: Float(clampedRoll), axis: SIMD3<Float>(0, 0, 1))
+        motionOrientation = horizontal * vertical * tilt
+        updateCamera()
+    }
+
     private func updateCamera() {
         cameraRig.simdPosition = basePosition + SIMD3(0, Float(heightOffset), 0)
         let horizontal = simd_quatf(angle: Float(yaw), axis: SIMD3(0, 1, 0))
         let vertical = simd_quatf(angle: Float(pitch), axis: SIMD3(1, 0, 0))
-        cameraRig.simdOrientation = horizontal * baseOrientation * vertical
+        cameraRig.simdOrientation = horizontal * baseOrientation * vertical * motionOrientation
     }
 
     private func accent(_ color: UIColor, group: Int, intensity: CGFloat = 1) -> SCNMaterial {

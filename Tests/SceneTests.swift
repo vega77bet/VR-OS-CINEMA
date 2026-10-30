@@ -39,6 +39,18 @@ final class SceneTests: XCTestCase {
         XCTAssertEqual(room.centerEye.camera?.fieldOfView, 86)
     }
 
+    func testHeadMotionChangesPoseAndViewResetClearsIt() {
+        let room = CinemaScene()
+        let original = room.cameraRig.simdOrientation.vector
+        room.setMotion(yaw: 0.5, pitch: 0.3, roll: -0.2)
+        let moved = room.cameraRig.simdOrientation.vector
+        XCTAssertLessThan(abs(simd_dot(original, moved)), 0.9999)
+
+        room.setView(.seat)
+        let restored = room.cameraRig.simdOrientation.vector
+        XCTAssertEqual(abs(simd_dot(original, restored)), 1, accuracy: 0.00001)
+    }
+
     func testNativeRenderedGallery() throws {
         let room = CinemaScene()
         let device = try XCTUnwrap(MTLCreateSystemDefaultDevice(), "Metal is required for authentic scene previews")

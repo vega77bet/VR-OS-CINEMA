@@ -15,6 +15,9 @@ final class CinemaViewController: UIViewController {
     private var lastSettled = true
     private var active = false
     private var rememberedIdleTimer = false
+    private let headMotion = HeadMotionController()
+    private var motionEnabled = true
+    private var motionAvailable = false
     private let phase = UILabel()
 
     override var prefersStatusBarHidden: Bool { true }
@@ -30,6 +33,9 @@ final class CinemaViewController: UIViewController {
         phase.textColor = .clear
         phase.font = .systemFont(ofSize: 1)
         phase.frame = CGRect(x: 1, y: 1, width: 2, height: 2)
+        headMotion.onSample = { [weak self] sample in
+            self?.applyMotion(sample)
+        }
         buildViewports()
         NotificationCenter.default.addObserver(self, selector: #selector(suspend), name: UIApplication.willResignActiveNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(resume), name: UIApplication.didBecomeActiveNotification, object: nil)
@@ -50,6 +56,7 @@ final class CinemaViewController: UIViewController {
 
     deinit {
         displayLink?.invalidate()
+        headMotion.stop()
         NotificationCenter.default.removeObserver(self)
     }
 
@@ -101,16 +108,26 @@ final class CinemaViewController: UIViewController {
 
     private func perform(_ action: String) {
         switch action {
-        case "seat": cinema.setView(.seat)
-        case "room": cinema.setView(.room)
-        case "chair": cinema.setView(.chair)
+        case "seat": changeView(.seat)
+        case "room": changeView(.room)
+        case "chair": changeView(.chair)
         case "height":
             cinema.setHeight(cinema.heightOffset >= 0.74 ? 0 : cinema.heightOffset + 0.25)
         case "stereo":
             stereo.toggle()
-            cinema.setView(.seat)
+            changeView(.seat)
             hiddenHUD = false
             buildViewports()
+        case "motion":
+            if motionEnabled {
+                motionEnabled = false
+                motionAvailable = false
+                headMotion.stop()
+                cinema.setMotion(yaw: 0, pitch: 0, roll: 0)
+            } else {
+                motionEnabled = true
+                startMotion()
+            }
         case "session":
             dark.toggle()
             lastSettled = false
@@ -136,6 +153,30 @@ final class CinemaViewController: UIViewController {
         renderers.forEach { $0.setNeedsDisplay() }
     }
 
+    private func changeView(_ view: RoomView) {
+        cinema.setView(view)
+        // A new viewpoint is also a new comfortable forward direction.
+        headMotion.recenter()
+        cinema.setMotion(yaw: 0, pitch: 0, roll: 0)
+    }
+
+    private func startMotion() {
+        let orientation = view.window?.windowScene?.interfaceOrientation ?? .landscapeLeft
+        motionAvailable = headMotion.start(interfaceOrientation: orientation)
+        if !motionAvailable {
+            motionEnabled = false
+            cinema.setMotion(yaw: 0, pitch: 0, roll: 0)
+        }
+        updateHUD()
+        renderers.forEach { $0.setNeedsDisplay() }
+    }
+
+    private func applyMotion(_ sample: HeadMotionSample) {
+        guard motionEnabled, motionAvailable else { return }
+        cinema.setMotion(yaw: sample.yaw, pitch: sample.pitch, roll: sample.roll)
+        renderers.forEach { $0.setNeedsDisplay() }
+    }
+
     @objc private func toggleHUD() { setHUDHidden(!hiddenHUD) }
 
     private func setHUDHidden(_ hidden: Bool) {
@@ -144,7 +185,12 @@ final class CinemaViewController: UIViewController {
         UIView.animate(withDuration: duration) { self.huds.forEach { $0.alpha = hidden ? 0 : 1 } }
     }
 
-    private func updateHUD() { huds.forEach { $0.update(dark: dark, settled: lastSettled, currentView: cinema.view) } }
+    private func updateHUD() {
+        huds.forEach {
+            $0.update(dark: dark, settled: lastSettled, currentView: cinema.view,
+                      motionEnabled: motionEnabled, motionAvailable: motionAvailable)
+        }
+    }
 
     @objc private func tick(_ link: CADisplayLink) {
         if !lastSettled {
@@ -164,6 +210,8 @@ final class CinemaViewController: UIViewController {
 
     @objc private func suspend() {
         active = false
+        motionAvailable = false
+        headMotion.stop()
         displayLink?.invalidate()
         displayLink = nil
         renderers.forEach { $0.isPlaying = false }
@@ -172,6 +220,7 @@ final class CinemaViewController: UIViewController {
     @objc private func resume() {
         guard viewIfLoaded?.window != nil else { return }
         active = true
+        if motionEnabled { startMotion() }
         renderers.forEach { $0.setNeedsDisplay() }
         if !lastSettled { startAnimationClock() }
     }

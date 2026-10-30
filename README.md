@@ -12,9 +12,12 @@ poltronas originais Orion, telão curvo e iluminação de início de sessão.
 - Painéis acústicos, frisos, teto pontilhado e dois corredores com degraus luminosos.
 - Prévia de sessão de 3,6 segundos: frente, teto e laterais escurecem em sequência.
   Os guias dos degraus permanecem visíveis. A transição pode ser revertida durante o movimento.
-- Vistas da poltrona, sala e detalhe Orion; arraste para olhar, toque para ocultar/mostrar controles.
+- Vistas da poltrona, sala e detalhe Orion; movimento de cabeça pelo giroscópio no iPhone,
+  arraste como fallback, toque para ocultar/mostrar controles.
 - Botão Altura alterna a elevação do observador; Centralizar retorna ao ponto inicial.
 - Prévia binocular com câmeras paralelas separadas por 64 mm e HUD dentro de cada olho.
+- No modo VR Box, o celular acompanha yaw, pitch e roll (3DoF), e o botão Centralizar
+  define a direção atual como frente.
 - Texturas e arte Aurora originais geradas em código, funcionamento inteiramente offline.
 - Ícone próprio, respeito a Reduzir Movimento e renderização sob demanda: a sala
   estática não mantém um relógio de animação ativo. O render também para ao sair do aplicativo.
@@ -22,10 +25,10 @@ poltronas originais Orion, telão curvo e iluminação de início de sessão.
 ## Limites desta etapa
 
 O botão Iniciar sessão demonstra o escurecimento e troca a arte do telão. **Ainda não
-reproduz filmes.** Câmera, Joy-Con, rastreamento da cabeça, seleção por olhar,
-calibração óptica/distorção das lentes e ajustes de distância entre olhos ficam
-para a próxima etapa funcional. A visão binocular atual é uma prévia visual por toque.
-O alinhamento e o conforto no VR Box dependem de validação no aparelho real.
+reproduz filmes.** Câmera, Joy-Con, seleção por olhar, calibração óptica/distorção das
+lentes e ajustes de distância entre olhos ficam para a próxima etapa funcional. O
+movimento implementado é rotacional (3DoF): o VR Box não fornece deslocamento físico
+pela sala. O alinhamento e o conforto dependem de validação no aparelho real.
 
 ## Compilar
 
@@ -65,7 +68,8 @@ Essa limitação do arquivo de captura não é um recorte do aplicativo.
 - `Cinema/ChairFactory.swift`: geometria original das poltronas.
 - `Cinema/Materials.swift`: materiais e texturas procedurais.
 - `Cinema/VisualState.swift`: escala e transições reversíveis.
-- `Cinema/CinemaViewController.swift`: render, ciclo de vida e navegação visual.
+- `Cinema/HeadMotion.swift`: Core Motion, calibração e mapeamento landscape para 3DoF.
+- `Cinema/CinemaViewController.swift`: render, ciclo de vida, movimento e navegação visual.
 - `Cinema/CinemaHUD.swift`: controles de prévia, com versão por olho.
 - `Cinema/SceneDelegate.swift`: janela vinculada à cena e dimensionamento em paisagem.
 - `Tests/` e `UITests/`: verificações e galeria nativa.

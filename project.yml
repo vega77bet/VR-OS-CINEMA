@@ -22,6 +22,7 @@ targets:
       properties:
         CFBundleDisplayName: VR-OS Cinema
         UIUserInterfaceStyle: Dark
+        NSMotionUsageDescription: "O VR-OS Cinema usa o movimento do iPhone para acompanhar o olhar dentro do VR Box."
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations:

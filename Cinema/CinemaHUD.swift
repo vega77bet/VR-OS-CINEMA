@@ -45,6 +45,7 @@ final class CinemaHUD: UIView {
         addButton("room", symbol: "building.2", label: "Ver sala", short: "Sala")
         addButton("chair", symbol: "chair.lounge", label: "Ver poltrona", short: "Poltrona")
         addButton("height", symbol: "arrow.up.and.down", label: "Altura", short: "Altura")
+        addButton("motion", symbol: "gyroscope", label: "Movimento", short: "Movimento")
         addButton("stereo", symbol: "view.3d", label: "VR Box", short: "Sair VR")
 
         var configuration = UIButton.Configuration.filled()
@@ -115,13 +116,19 @@ final class CinemaHUD: UIView {
         toolbar.addArrangedSubview(button)
     }
 
-    func update(dark: Bool, settled: Bool, currentView: RoomView) {
-        status.text = settled ? (dark ? "SESSÃO VISUAL · LUZES APAGADAS" : "SALA AURORA · PRÉVIA VISUAL") : (dark ? "PREPARANDO A SALA…" : "ACENDENDO A SALA…")
+    func update(dark: Bool, settled: Bool, currentView: RoomView,
+                motionEnabled: Bool, motionAvailable: Bool) {
+        let tracking = motionEnabled && motionAvailable ? "MOVIMENTO DA CABEÇA" : "ARRASTE PARA OLHAR"
+        status.text = settled ? (dark ? "SESSÃO VISUAL · LUZES APAGADAS · \(tracking)" : "SALA AURORA · \(tracking)") : (dark ? "PREPARANDO A SALA…" : "ACENDENDO A SALA…")
         session.configuration?.title = compact ? (dark ? "Acender" : "Luzes") : (dark ? "Acender luzes" : "Iniciar sessão")
         session.configuration?.image = UIImage(systemName: dark ? "sun.max" : "moon.stars")
         session.accessibilityLabel = dark ? "Acender luzes" : "Iniciar sessão"
         buttons["room"]?.tintColor = currentView == .room ? Palette.amber : Palette.pearl
         buttons["chair"]?.tintColor = currentView == .chair ? Palette.amber : Palette.pearl
+        let motionButton = buttons["motion"]
+        motionButton?.tintColor = motionEnabled && motionAvailable ? Palette.amber : Palette.pearl
+        motionButton?.configuration?.title = motionEnabled && motionAvailable ? "Movimento" : "Ativar"
+        motionButton?.accessibilityLabel = motionEnabled && motionAvailable ? "Desligar movimento da cabeça" : "Ativar movimento da cabeça"
     }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
