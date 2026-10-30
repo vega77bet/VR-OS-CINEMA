@@ -50,7 +50,7 @@ objetos/partículas à cena do filme. O quanto algo parece sair da tela depende
 da estereoscopia da fonte. Formatos/4K/HDR dependem da decodificação do iPhone;
 a saída atual solicita SDR do AVFoundation, sem promessa de HDR nativo.
 
-Para usar: Filme e 3D → Abrir filme em Arquivos (ou Teste 3D) → confirmar formato
+Para usar: botão 3D → Abrir filme em Arquivos (ou Teste 3D) → confirmar formato
 → Concluir → Reproduzir → colocar no VR Box e Centralizar. Os ajustes de filme
 são feitos no telefone; seleção por olhar/controle ainda não está implementada.
 
@@ -81,6 +81,13 @@ proporção, orientação, cancelamento de carregamento, arquivo inválido,
 decodificação real da demonstração, pausa, busca, fim/replay e navegação UIKit.
 As execuções e evidências ficam em GitHub Actions; um build compilado sozinho
 não comprova a reprodução ou o conforto no hardware.
+
+Validação da versão 0.2.0 (build 4): [execução aprovada](https://github.com/vega77bet/VR-OS-CINEMA/actions/runs/41086397527),
+fonte `96bee26422691c81ab052cb2eb37b435b414f365`. Build Release para iPhone,
+13 testes nativos e 2 de interface, todos aprovados no simulador iPhone 16.
+As capturas finais foram revisadas para separação por olho, bordas sem mistura
+entre metades e legibilidade dos controles. A validação em iPhone/VR Box real
+continua necessária para movimento, alinhamento, fluidez e conforto.
 
 As capturas `full-display` do artefato de interface mostram a tela completa.
 O recorte de `XCUIApplication.screenshot()` pode ficar incorreto em paisagem;
