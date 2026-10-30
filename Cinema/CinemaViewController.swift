@@ -95,7 +95,9 @@ final class CinemaViewController: UIViewController {
         renderers.removeAll()
         huds.removeAll()
         for eye in 0..<(stereo ? 2 : 1) {
-            let renderer = SCNView(frame: .zero, options: [.preferredRenderingAPI: SCNRenderingAPI.metal.rawValue])
+            var options: [String: Any] = [SCNView.Option.preferredRenderingAPI.rawValue: SCNRenderingAPI.metal.rawValue]
+            if let device = movie.device { options[SCNView.Option.preferredDevice.rawValue] = device }
+            let renderer = SCNView(frame: .zero, options: options)
             renderer.backgroundColor = .black
             renderer.scene = cinema.scene
             renderer.pointOfView = stereo ? (eye == 0 ? cinema.leftEye : cinema.rightEye) : cinema.centerEye
