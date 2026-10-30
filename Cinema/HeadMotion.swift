@@ -21,10 +21,16 @@ enum HeadMotionMapper {
             // SceneKit's positive X rotation makes the view look downward.
             // Core Motion reports the opposite sign for the viewer's vertical
             // look direction, so invert the mapped pitch in both orientations.
-            return HeadMotionSample(yaw: -pitch, pitch: -roll, roll: yaw)
+            // SceneKit's positive Y rotation turns the camera toward the
+            // opposite side of the viewer. Invert yaw so turning the head
+            // right moves the view right in the VR Box.
+            return HeadMotionSample(yaw: pitch, pitch: -roll, roll: yaw)
         default:
             // landscapeLeft is the default orientation used by the viewer.
-            return HeadMotionSample(yaw: pitch, pitch: roll, roll: yaw)
+            // SceneKit's positive Y rotation turns the camera toward the
+            // opposite side of the viewer. Invert yaw so turning the head
+            // right moves the view right in the VR Box.
+            return HeadMotionSample(yaw: -pitch, pitch: roll, roll: yaw)
         }
     }
 }
