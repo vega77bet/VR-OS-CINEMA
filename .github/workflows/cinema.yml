@@ -25,6 +25,7 @@ jobs:
       - name: Generate project and app icon
         run: |
           swift Tools/MakeIcon.swift
+          swift Tools/MakeDemo.swift
           xcodegen generate
       - name: Build iPhone application
         run: |
@@ -91,11 +92,11 @@ jobs:
         run: |
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/VROSCinema.app Payload/
-          zip -qry VR-OS-Cinema-0.1.1-motion-unsigned.ipa Payload
+          zip -qry VR-OS-Cinema-0.2.0-3D-unsigned.ipa Payload
       - name: Upload iPhone preview
         uses: actions/upload-artifact@v4
         with:
-          name: VR-OS-Cinema-visual-IPA
-          path: VR-OS-Cinema-0.1.1-motion-unsigned.ipa
+          name: VR-OS-Cinema-3D-IPA
+          path: VR-OS-Cinema-0.2.0-3D-unsigned.ipa
           if-no-files-found: error
           retention-days: 30

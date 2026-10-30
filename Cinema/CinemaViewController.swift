@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 
 final class CinemaViewController: UIViewController {
     let cinema = CinemaScene()
+    private let movie = MoviePlayer()
+    private var projection = ProjectionSettings()
     private var renderers: [SCNView] = []
     private var huds: [CinemaHUD] = []
     private var stereo = false
@@ -20,9 +22,10 @@ final class CinemaViewController: UIViewController {
     private let headMotion = HeadMotionController()
     private var motionEnabled = true
     private var motionAvailable = false
-    private var moviePlayer: AVPlayer?
-    private var movieEndObserver: NSObjectProtocol?
     private let phase = UILabel()
+    private let movieState = UILabel()
+    private var lastLightTime = 0.0
+    private var lastInteraction = CACurrentMediaTime()
 
     override var prefersStatusBarHidden: Bool { true }
     override var prefersHomeIndicatorAutoHidden: Bool { true }
@@ -31,18 +34,40 @@ final class CinemaViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
-        phase.isAccessibilityElement = true
-        phase.accessibilityIdentifier = "lighting.phase"
-        phase.text = "lounge"
-        phase.textColor = .clear
-        phase.font = .systemFont(ofSize: 1)
-        phase.frame = CGRect(x: 1, y: 1, width: 2, height: 2)
-        headMotion.onSample = { [weak self] sample in
-            self?.applyMotion(sample)
+        for (label, identifier, value) in [(phase, "lighting.phase", "lounge"), (movieState, "movie.state", "empty")] {
+            label.isAccessibilityElement = true
+            label.accessibilityIdentifier = identifier
+            label.text = value
+            label.textColor = .clear
+            label.font = .systemFont(ofSize: 1)
+            label.frame = CGRect(x: 1, y: 1, width: 2, height: 2)
+        }
+        headMotion.onSample = { [weak self] sample in self?.applyMotion(sample) }
+        movie.onReady = { [weak self] info in
+            guard let self else { return }
+            self.projection.layout = info.suggestedLayout ?? .flat
+            self.projection.swapEyes = false
+            self.projection.alignment = 0
+            self.configureProjection()
+            self.setHUDHidden(false)
+        }
+        movie.onChange = { [weak self] in
+            self?.updateHUD()
+            self?.refreshClock()
+        }
+        movie.onFailure = { [weak self] message in
+            guard let self else { return }
+            self.cinema.clearMovie()
+            self.renderers.forEach { $0.setNeedsDisplay() }
+            let alert = UIAlertController(title: "Não foi possível reproduzir", message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            (self.presentedViewController ?? self).present(alert, animated: true)
         }
         buildViewports()
         NotificationCenter.default.addObserver(self, selector: #selector(suspend), name: UIApplication.willResignActiveNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(resume), name: UIApplication.didBecomeActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(audioInterrupted(_:)), name: AVAudioSession.interruptionNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(audioRouteChanged(_:)), name: AVAudioSession.routeChangeNotification, object: nil)
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -60,8 +85,6 @@ final class CinemaViewController: UIViewController {
 
     deinit {
         displayLink?.invalidate()
-        if let movieEndObserver { NotificationCenter.default.removeObserver(movieEndObserver) }
-        moviePlayer?.pause()
         headMotion.stop()
         NotificationCenter.default.removeObserver(self)
     }
@@ -72,13 +95,15 @@ final class CinemaViewController: UIViewController {
         renderers.removeAll()
         huds.removeAll()
         for eye in 0..<(stereo ? 2 : 1) {
-            let renderer = SCNView(frame: .zero, options: nil)
+            let renderer = SCNView(frame: .zero, options: [.preferredRenderingAPI: SCNRenderingAPI.metal.rawValue])
             renderer.backgroundColor = .black
             renderer.scene = cinema.scene
             renderer.pointOfView = stereo ? (eye == 0 ? cinema.leftEye : cinema.rightEye) : cinema.centerEye
             renderer.preferredFramesPerSecond = 60
             renderer.antialiasingMode = .multisampling2X
-            renderer.isPlaying = active && !lastSettled
+            // One display link latches a movie frame for both eyes, then asks
+            // both views to render. Paused/static rooms return to on-demand.
+            renderer.isPlaying = false
             renderer.rendersContinuously = false
             renderer.autoenablesDefaultLighting = false
             renderer.allowsCameraControl = false
@@ -92,11 +117,17 @@ final class CinemaViewController: UIViewController {
             renderers.append(renderer)
             let hud = CinemaHUD(compact: stereo)
             hud.onAction = { [weak self] action in self?.perform(action) }
+            hud.onSeek = { [weak self] value in
+                self?.movie.seek(to: value)
+                self?.lastInteraction = CACurrentMediaTime()
+                self?.refreshClock()
+            }
             hud.alpha = hiddenHUD ? 0 : 1
             view.addSubview(hud)
             huds.append(hud)
         }
         view.addSubview(phase)
+        view.addSubview(movieState)
         updateHUD()
         view.setNeedsLayout()
     }
@@ -113,12 +144,12 @@ final class CinemaViewController: UIViewController {
     }
 
     private func perform(_ action: String) {
+        lastInteraction = CACurrentMediaTime()
         switch action {
         case "seat": changeView(.seat)
         case "room": changeView(.room)
         case "chair": changeView(.chair)
-        case "height":
-            cinema.setHeight(cinema.heightOffset >= 0.74 ? 0 : cinema.heightOffset + 0.25)
+        case "height": cinema.setHeight(cinema.heightOffset >= 0.74 ? 0 : cinema.heightOffset + 0.25)
         case "stereo":
             stereo.toggle()
             changeView(.seat)
@@ -130,28 +161,31 @@ final class CinemaViewController: UIViewController {
                 motionAvailable = false
                 headMotion.stop()
                 cinema.setMotion(yaw: 0, pitch: 0, roll: 0)
-            } else {
-                motionEnabled = true
-                startMotion()
-            }
+            } else { motionEnabled = true; startMotion() }
         case "movie":
-            if moviePlayer == nil {
-                chooseMovie()
-            } else {
-                toggleMoviePlayback()
-            }
-        case "session":
-            dark.toggle()
-            lastSettled = false
-            transition.move(to: dark ? 1 : 0, at: CACurrentMediaTime(), reducedMotion: UIAccessibility.isReduceMotionEnabled)
-            cinema.showSessionArtwork(dark)
-            phase.text = "transition"
-            setHUDHidden(false)
-            startAnimationClock()
+            if movie.isLoaded {
+                if movie.wantsPlayback { movie.pause() }
+                else { if !dark { setDark(true) }; movie.play() }
+            } else { chooseMovie() }
+        case "settings": showMovieSettings()
+        case "back": movie.seek(to: movie.currentTime - 10)
+        case "forward": movie.seek(to: movie.currentTime + 10)
+        case "session": setDark(!dark)
         default: break
         }
         updateHUD()
+        refreshClock()
         renderers.forEach { $0.setNeedsDisplay() }
+    }
+
+    private func setDark(_ value: Bool) {
+        dark = value
+        lastSettled = false
+        transition.move(to: value ? 1 : 0, at: CACurrentMediaTime(), reducedMotion: UIAccessibility.isReduceMotionEnabled)
+        cinema.showSessionArtwork(value)
+        phase.text = "transition"
+        setHUDHidden(false)
+        refreshClock()
     }
 
     @objc private func pan(_ gesture: UIPanGestureRecognizer) {
@@ -167,7 +201,6 @@ final class CinemaViewController: UIViewController {
 
     private func changeView(_ view: RoomView) {
         cinema.setView(view)
-        // A new viewpoint is also a new comfortable forward direction.
         headMotion.recenter()
         cinema.setMotion(yaw: 0, pitch: 0, roll: 0)
     }
@@ -175,10 +208,7 @@ final class CinemaViewController: UIViewController {
     private func startMotion() {
         let orientation = view.window?.windowScene?.interfaceOrientation ?? .landscapeLeft
         motionAvailable = headMotion.start(interfaceOrientation: orientation)
-        if !motionAvailable {
-            motionEnabled = false
-            cinema.setMotion(yaw: 0, pitch: 0, roll: 0)
-        }
+        if !motionAvailable { motionEnabled = false; cinema.setMotion(yaw: 0, pitch: 0, roll: 0) }
         updateHUD()
         renderers.forEach { $0.setNeedsDisplay() }
     }
@@ -190,91 +220,98 @@ final class CinemaViewController: UIViewController {
     }
 
     @objc private func toggleHUD() { setHUDHidden(!hiddenHUD) }
-
     private func setHUDHidden(_ hidden: Bool) {
         hiddenHUD = hidden
+        if !hidden { lastInteraction = CACurrentMediaTime() }
         let duration = UIAccessibility.isReduceMotionEnabled ? 0 : 0.28
         UIView.animate(withDuration: duration) { self.huds.forEach { $0.alpha = hidden ? 0 : 1 } }
     }
 
     private func updateHUD() {
+        movieState.text = movie.state.rawValue
         huds.forEach {
             $0.update(dark: dark, settled: lastSettled, currentView: cinema.view,
                       motionEnabled: motionEnabled, motionAvailable: motionAvailable,
-                      movieLoaded: moviePlayer != nil,
-                      moviePlaying: moviePlayer?.timeControlStatus == .playing)
+                      movie: movie, projection: projection)
         }
     }
 
     private func chooseMovie() {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.movie], asCopy: true)
+        movie.pause()
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.movie], asCopy: false)
         picker.delegate = self
         picker.allowsMultipleSelection = false
         present(picker, animated: true)
     }
 
-    private func toggleMoviePlayback() {
-        guard let moviePlayer else { return }
-        if moviePlayer.timeControlStatus == .playing {
-            moviePlayer.pause()
-            updateHUD()
-            renderers.forEach { $0.setNeedsDisplay() }
-            return
+    private func showMovieSettings() {
+        movie.pause()
+        let settings = MovieSettingsViewController(settings: projection, info: movie.info, volume: movie.player.volume)
+        settings.onChange = { [weak self] value in
+            self?.projection = value
+            self?.configureProjection()
         }
-        // Starting a movie also starts the cinema session, fading the house
-        // lights down before the first frame becomes the focus of the room.
-        if !dark {
-            dark = true
-            lastSettled = false
-            transition.move(to: 1, at: CACurrentMediaTime(), reducedMotion: UIAccessibility.isReduceMotionEnabled)
-            phase.text = "transition"
-            startAnimationClock()
+        settings.onOpen = { [weak self] in self?.chooseMovie() }
+        settings.onDemo = { [weak self] in
+            guard let self, let url = Bundle.main.url(forResource: "Aurora-FSBS", withExtension: "mp4") else { return }
+            self.cinema.clearMovie()
+            self.movie.load(url)
         }
-        moviePlayer.play()
-        updateHUD()
-        renderers.forEach { $0.setNeedsDisplay() }
+        settings.onVolume = { [weak self] volume in self?.movie.player.volume = volume }
+        settings.onCloseMovie = { [weak self] in
+            guard let self else { return }
+            self.movie.close()
+            self.cinema.clearMovie()
+            self.setDark(false)
+        }
+        let navigation = UINavigationController(rootViewController: settings)
+        navigation.overrideUserInterfaceStyle = .dark
+        navigation.modalPresentationStyle = .pageSheet
+        present(navigation, animated: true)
     }
 
-    private func installMovie(url: URL) {
-        if let movieEndObserver { NotificationCenter.default.removeObserver(movieEndObserver) }
-        moviePlayer?.pause()
-        let player = AVPlayer(url: url)
-        player.actionAtItemEnd = .pause
-        moviePlayer = player
-        cinema.setScreenVideo(player)
-        movieEndObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime, object: player.currentItem, queue: .main
-        ) { [weak self] _ in
-            self?.updateHUD()
-            self?.renderers.forEach { $0.setNeedsDisplay() }
-        }
+    private func configureProjection() {
+        guard let info = movie.info else { return }
+        cinema.configureMovie(projection, info: info)
+        if let frame = movie.currentFrame { cinema.showMovieFrame(frame.texture) }
+        if projection.layout.isStereo && !stereo { stereo = true; buildViewports() }
         updateHUD()
         renderers.forEach { $0.setNeedsDisplay() }
+        refreshClock()
     }
 
     @objc private func tick(_ link: CADisplayLink) {
+        let now = CACurrentMediaTime()
+        if movie.updateFrame(hostTime: link.targetTimestamp) != nil, let frame = movie.currentFrame {
+            cinema.showMovieFrame(frame.texture)
+            if projection.ambientLight && now - lastLightTime > 0.25 {
+                lastLightTime = now
+                if let color = movie.averageColor() { cinema.updateMovieLight(color) }
+            }
+        }
         if !lastSettled {
-            cinema.applyDarkness(transition.value(at: link.timestamp))
-            renderers.forEach { $0.setNeedsDisplay() }
-            if transition.isFinished(at: link.timestamp) {
+            cinema.applyDarkness(transition.value(at: now))
+            if transition.isFinished(at: now) {
                 lastSettled = true
                 phase.text = dark ? "screening" : "lounge"
                 updateHUD()
-                if dark && !UIAccessibility.isVoiceOverRunning { setHUDHidden(true) }
-                displayLink?.invalidate()
-                displayLink = nil
-                renderers.forEach { $0.isPlaying = false }
+                if dark && !movie.isLoaded && !UIAccessibility.isVoiceOverRunning { setHUDHidden(true) }
             }
         }
+        if movie.wantsPlayback && !hiddenHUD && now - lastInteraction > 5 && !UIAccessibility.isVoiceOverRunning {
+            setHUDHidden(true)
+        }
+        renderers.forEach { $0.setNeedsDisplay() }
+        refreshClock()
     }
 
     @objc private func suspend() {
         active = false
+        movie.pause()
         motionAvailable = false
         headMotion.stop()
         displayLink?.invalidate()
         displayLink = nil
-        renderers.forEach { $0.isPlaying = false }
     }
 
     @objc private func resume() {
@@ -282,13 +319,27 @@ final class CinemaViewController: UIViewController {
         active = true
         if motionEnabled { startMotion() }
         renderers.forEach { $0.setNeedsDisplay() }
-        if !lastSettled { startAnimationClock() }
+        refreshClock()
     }
 
-    private func startAnimationClock() {
-        guard active && displayLink == nil else { return }
-        renderers.forEach { $0.isPlaying = true }
-        // A weak proxy prevents CADisplayLink from retaining the controller.
+    @objc private func audioInterrupted(_ note: Notification) {
+        guard let value = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              AVAudioSession.InterruptionType(rawValue: value) == .began else { return }
+        movie.pause()
+        setHUDHidden(false)
+    }
+
+    @objc private func audioRouteChanged(_ note: Notification) {
+        guard let value = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              AVAudioSession.RouteChangeReason(rawValue: value) == .oldDeviceUnavailable else { return }
+        movie.pause()
+        setHUDHidden(false)
+    }
+
+    private func refreshClock() {
+        let needed = active && (!lastSettled || movie.needsFrames)
+        if !needed { displayLink?.invalidate(); displayLink = nil; return }
+        guard displayLink == nil else { return }
         let proxy = DisplayLinkProxy(owner: self)
         let link = CADisplayLink(target: proxy, selector: #selector(DisplayLinkProxy.fire(_:)))
         link.preferredFramesPerSecond = 60
@@ -306,10 +357,7 @@ final class CinemaViewController: UIViewController {
 extension CinemaViewController: UIDocumentPickerDelegate {
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
         guard let url = urls.first else { return }
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback, options: [])
-        try? AVAudioSession.sharedInstance().setActive(true)
-        installMovie(url: url)
+        cinema.clearMovie()
+        movie.load(url)
     }
-
-    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {}
 }

@@ -1,5 +1,6 @@
 import SceneKit
 import UIKit
+import Metal
 
 /// This scene is used unchanged by the app and the native screenshot tests.
 final class CinemaScene {
@@ -20,6 +21,13 @@ final class CinemaScene {
     private var baseOrientation = simd_quatf()
     private var basePosition = SIMD3<Float>(repeating: 0)
     private var motionOrientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
+    private(set) var movieVisible = false
+    private(set) var leftVideoNode = SCNNode()
+    private(set) var rightVideoNode = SCNNode()
+    private(set) var leftVideoMaterial = CinemaMaterials.glow(.black)
+    private(set) var rightVideoMaterial = CinemaMaterials.glow(.black)
+    private var projection = ProjectionSettings()
+    private var movieColor = Palette.ice
 
     init() {
         scene.background.contents = UIColor.black
@@ -29,6 +37,7 @@ final class CinemaScene {
         buildArchitecture()
         buildSeating()
         buildScreen()
+        buildVideoScreens()
         buildLighting()
         setView(.seat)
         applyDarkness(0)
@@ -59,6 +68,9 @@ final class CinemaScene {
         centerEye.name = "center-eye"
         leftEye.name = "left-eye"
         rightEye.name = "right-eye"
+        centerEye.camera?.categoryBitMask = 1 | 2
+        leftEye.camera?.categoryBitMask = 1 | 2
+        rightEye.camera?.categoryBitMask = 1 | 4
     }
 
     func setView(_ view: RoomView) {
@@ -117,7 +129,7 @@ final class CinemaScene {
     }
 
     private func updateCamera() {
-        cameraRig.simdPosition = basePosition + SIMD3(0, Float(heightOffset), 0)
+        cameraRig.simdPosition = basePosition + SIMD3(0, Float(heightOffset), view == .seat ? Float(projection.screenDistance) : 0)
         let horizontal = simd_quatf(angle: Float(yaw), axis: SIMD3(0, 1, 0))
         let vertical = simd_quatf(angle: Float(pitch), axis: SIMD3(1, 0, 0))
         cameraRig.simdOrientation = horizontal * baseOrientation * vertical * motionOrientation
@@ -263,23 +275,107 @@ final class CinemaScene {
     func applyDarkness(_ value: Double) {
         darkness = CinemaLayout.clamp(value, 0, 1)
         let lighting = RoomLighting.at(darkness: darkness)
-        let factors = [lighting.front, lighting.sides, lighting.ceiling, lighting.guides, lighting.fill, 1.0]
+        let blackout = projection.ambience == .blackout && movieVisible
+        let extra = blackout ? 1 - darkness : 1
+        let factors = [lighting.front * extra, lighting.sides * extra, lighting.ceiling * extra,
+                       lighting.guides * (blackout ? 0.4 : 1), lighting.fill * extra, 1.0]
         SCNTransaction.begin()
         SCNTransaction.animationDuration = 0
         for (material, base, group) in accents { material.emission.intensity = base * CGFloat(factors[group]) }
-        for (light, base, group) in lamps { light.intensity = base * CGFloat(factors[group]) }
+        for (light, base, group) in lamps {
+            if group == 5 && movieVisible {
+                light.color = projection.ambientLight && !blackout ? movieColor : UIColor.black
+                light.intensity = projection.ambientLight && !blackout ? 160 : 0
+            } else {
+                light.intensity = base * CGFloat(factors[group])
+            }
+        }
         materials.cupLight.emission.intensity = CGFloat(0.65 * lighting.guides)
-        scene.lightingEnvironment.intensity = CGFloat(0.55 * (0.14 + 0.86 * lighting.fill))
+        scene.lightingEnvironment.intensity = CGFloat(0.55 * (0.14 + 0.86 * lighting.fill) * extra)
         SCNTransaction.commit()
     }
 
     func showSessionArtwork(_ active: Bool) {
+        guard !movieVisible else { return }
         materials.screen.emission.contents = active ? materials.sessionArtwork : materials.loungeArtwork
     }
 
-    /// SceneKit can use AVPlayer directly as a material source. Both eye
-    /// renderers then sample the same movie frame.
-    func setScreenVideo(_ player: Any?) {
-        materials.screen.emission.contents = player ?? (darkness > 0.5 ? materials.sessionArtwork : materials.loungeArtwork)
+    private func buildVideoScreens() {
+        for (node, material, mask, name) in [(leftVideoNode, leftVideoMaterial, 2, "movie-left"),
+                                              (rightVideoNode, rightVideoMaterial, 4, "movie-right")] {
+            node.name = name
+            node.categoryBitMask = mask
+            node.position = SCNVector3(0, CinemaLayout.screenCenterY, CinemaLayout.screenZ + 0.025)
+            node.isHidden = true
+            material.isDoubleSided = false
+            material.emission.wrapS = .clamp
+            material.emission.wrapT = .clamp
+            material.emission.minificationFilter = .linear
+            material.emission.magnificationFilter = .linear
+            material.emission.mipFilter = .none
+            scene.rootNode.addChildNode(node)
+        }
+    }
+
+    func configureMovie(_ settings: ProjectionSettings, info: MovieInfo) {
+        projection = settings
+        movieVisible = true
+        leftEye.position.x = -Float(settings.eyeDistance / 2)
+        rightEye.position.x = Float(settings.eyeDistance / 2)
+        let scale = settings.ambience == .portal ? 1.1 : 1.0
+        let width = CinemaLayout.screenWidth * scale
+        let height = CinemaLayout.screenHeight * scale
+        let aspect = max(0.25, min(settings.aspect(frame: info.displaySize), 6))
+        let fittedWidth = min(width, height * aspect)
+        let fittedHeight = fittedWidth / aspect
+        let radius = settings.curved ? CinemaLayout.screenRadius : 100000
+        for (node, material, rightEye) in [(leftVideoNode, leftVideoMaterial, false), (rightVideoNode, rightVideoMaterial, true)] {
+            node.geometry = Geometry.curvedScreen(width: fittedWidth, height: fittedHeight, radius: radius) { point in
+                settings.uv(point, rightEye: rightEye, frame: info.nativeSize, transform: info.transform)
+            }
+            node.geometry?.materials = [material]
+            node.isHidden = false
+            material.emission.intensity = CGFloat(settings.brightness)
+        }
+        // A full-sized black backing gives correct letterboxing and also hides
+        // the Aurora artwork before the decoder produces its first frame.
+        for name in ["screen-surround", "screen-velvet", "giant-screen"] {
+            if let node = scene.rootNode.childNode(withName: name, recursively: false) {
+                let padding = name == "screen-surround" ? 0.34 : (name == "screen-velvet" ? 0.18 : 0)
+                let material = node.geometry?.firstMaterial
+                node.geometry = Geometry.curvedScreen(width: width + padding, height: height + padding, radius: radius)
+                if let material { node.geometry?.materials = [material] }
+            }
+        }
+        materials.screen.emission.contents = UIColor.black
+        applyDarkness(darkness)
+        updateCamera()
+    }
+
+    func showMovieFrame(_ texture: MTLTexture) {
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = 0
+        leftVideoMaterial.emission.contents = texture
+        rightVideoMaterial.emission.contents = texture
+        SCNTransaction.commit()
+    }
+
+    func updateMovieLight(_ color: UIColor) {
+        var oldR: CGFloat = 0, oldG: CGFloat = 0, oldB: CGFloat = 0, alpha: CGFloat = 0
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0
+        movieColor.getRed(&oldR, green: &oldG, blue: &oldB, alpha: &alpha)
+        color.getRed(&r, green: &g, blue: &b, alpha: &alpha)
+        movieColor = UIColor(red: oldR * 0.7 + r * 0.3, green: oldG * 0.7 + g * 0.3, blue: oldB * 0.7 + b * 0.3, alpha: 1)
+        applyDarkness(darkness)
+    }
+
+    func clearMovie() {
+        movieVisible = false
+        leftVideoNode.isHidden = true
+        rightVideoNode.isHidden = true
+        leftVideoMaterial.emission.contents = UIColor.black
+        rightVideoMaterial.emission.contents = UIColor.black
+        showSessionArtwork(darkness > 0.5)
+        applyDarkness(darkness)
     }
 }

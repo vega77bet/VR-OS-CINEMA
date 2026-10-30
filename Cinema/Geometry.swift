@@ -15,7 +15,8 @@ enum Geometry {
         return node
     }
 
-    static func curvedScreen(width: Double, height: Double, radius: Double, segments: Int = 96) -> SCNGeometry {
+    static func curvedScreen(width: Double, height: Double, radius: Double, segments: Int = 96,
+                             texturePoint: (CGPoint) -> CGPoint = { $0 }) -> SCNGeometry {
         precondition(width > 0 && height > 0 && radius > width / 2 && segments >= 2)
         var vertices: [SCNVector3] = [], normals: [SCNVector3] = [], uv: [CGPoint] = [], indices: [Int32] = []
         let arc = asin(width / (2 * radius))
@@ -25,7 +26,7 @@ enum Geometry {
                 let angle = (2 * u - 1) * arc
                 vertices.append(SCNVector3(radius * sin(angle), (Double(row) - 0.5) * height, radius * (1 - cos(angle))))
                 normals.append(SCNVector3(-sin(angle), 0, cos(angle)))
-                uv.append(CGPoint(x: u, y: 1 - Double(row)))
+                uv.append(texturePoint(CGPoint(x: u, y: 1 - Double(row))))
             }
         }
         for column in 0..<segments {

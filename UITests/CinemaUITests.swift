@@ -1,6 +1,49 @@
 import XCTest
 
 final class CinemaUITests: XCTestCase {
+    func testStereoMoviePlaybackAndSettings() {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .landscapeLeft
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertTrue(app.buttons["settings"].waitForExistence(timeout: 20))
+        app.buttons["settings"].tap()
+        XCTAssertTrue(app.buttons["movie.demo"].waitForExistence(timeout: 5))
+        app.buttons["movie.demo"].tap()
+        let state = app.staticTexts["movie.state"]
+        expectation(for: NSPredicate(format: "label == 'ready'"), evaluatedWith: state)
+        waitForExpectations(timeout: 20)
+        XCTAssertEqual(app.otherElements.matching(identifier: "viewport.eye.0").count, 1)
+        let play = app.buttons.matching(identifier: "movie.eye").element(boundBy: 0)
+        XCTAssertTrue(play.isHittable)
+        XCTAssertEqual(play.label, "Reproduzir filme")
+        play.tap()
+        expectation(for: NSPredicate(format: "label == 'playing'"), evaluatedWith: state)
+        waitForExpectations(timeout: 10)
+        XCTAssertTrue(app.sliders.matching(identifier: "movie.progress.eye").element(boundBy: 0).exists)
+        // A frame and audio clock must keep advancing after the light fade.
+        expectation(for: NSPredicate(format: "label == 'screening'"), evaluatedWith: app.staticTexts["lighting.phase"])
+        waitForExpectations(timeout: 10)
+        if !play.isHittable { app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.35)).tap() }
+        play.tap()
+        expectation(for: NSPredicate(format: "label == 'paused'"), evaluatedWith: state)
+        waitForExpectations(timeout: 5)
+        attach(app, "08-filme-3D-binocular")
+        app.buttons.matching(identifier: "settings.eye").element(boundBy: 0).tap()
+        let formats = app.segmentedControls["projection.layout"]
+        XCTAssertTrue(formats.waitForExistence(timeout: 5))
+        if !formats.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        formats.buttons["2D"].tap()
+        formats.buttons["Full SBS"].tap()
+        app.buttons["Concluir"].tap()
+        XCTAssertEqual(play.label, "Reproduzir filme")
+        // Toggling room lights must preserve the loaded video and its controls.
+        app.buttons.matching(identifier: "session.toggle.eye").element(boundBy: 0).tap()
+        XCTAssertTrue(app.sliders.matching(identifier: "movie.progress.eye").element(boundBy: 0).exists)
+        attach(app, "09-filme-3D-pausado")
+        app.terminate()
+    }
+
     func testTourLightingAndBinocularReturn() {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .landscapeLeft
