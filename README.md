@@ -48,7 +48,7 @@ usando **a mesma CinemaScene do aplicativo**. As prévias não são imagens conc
 O IPA só é empacotado se build, testes e exportação passarem. Ele não é assinado;
 a instalação exige assinatura por uma ferramenta apropriada, como SideStore.
 
-## Validação da prévia 0.1.0
+## Validação da prévia 0.1.1 (build 2)
 
 [Execução aprovada](https://github.com/vega77bet/VR-OS-CINEMA/actions/runs/40980378056),
 referente ao código `58104356d99d3a50353091cba1b731a0ce792cf1`:
