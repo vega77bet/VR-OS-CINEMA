@@ -55,6 +55,12 @@ final class HeadMotionController {
 
     @discardableResult
     func start(interfaceOrientation: UIInterfaceOrientation) -> Bool {
+#if targetEnvironment(simulator)
+        // The simulator cannot provide a physical head pose. Keeping Core
+        // Motion off here makes UI automation deterministic; a real iPhone
+        // takes the device path below.
+        return false
+#else
         guard motion.isDeviceMotionAvailable else { return false }
 
         stop()
@@ -72,6 +78,7 @@ final class HeadMotionController {
             self.consume(data.attitude)
         }
         return true
+#endif
     }
 
     func stop() {
