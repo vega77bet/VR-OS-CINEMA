@@ -77,7 +77,7 @@ for frame in 0..<count {
                 NSAttributedString.Key(kCTFontAttributeName as String): font,
                 NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(gray: 0.9, alpha: 1)])
             ctx.textPosition = CGPoint(x: 24, y: 326)
-            CTLineDraw(CTLineCreateWithAttributedString(title), ctx)
+            CTLineDraw(CTLineCreateWithAttributedString(title as CFAttributedString), ctx)
             ctx.restoreGState()
         }
         CVPixelBufferUnlockBaseAddress(buffer, [])

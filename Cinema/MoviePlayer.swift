@@ -38,7 +38,7 @@ final class MoviePlayer {
     var onReady: ((MovieInfo) -> Void)?
     var onFailure: ((String) -> Void)?
     var isLoaded: Bool { info != nil && state != .failed && state != .empty }
-    var needsFrames: Bool { isLoaded && (wantsPlayback || awaitingFrame) }
+    var needsFrames: Bool { isLoaded && (wantsPlayback || awaitingFrame || seeking) }
     var currentTime: Double { max(0, player.currentTime().seconds.isFinite ? player.currentTime().seconds : 0) }
 
     private var output: AVPlayerItemVideoOutput?
@@ -52,6 +52,9 @@ final class MoviePlayer {
     private var scopedURL: URL?
     private var generation = UUID()
     private var awaitingFrame = false
+    private var seeking = false
+    private var seekGeneration = UUID()
+    private var frameWaitStarted: CFTimeInterval?
     private let colorContext = CIContext(options: [.cacheIntermediates: false])
 
     init() {
@@ -174,11 +177,17 @@ final class MoviePlayer {
         guard let info, info.duration.isFinite && info.duration > 0 else { return }
         let value = max(0, min(seconds, max(0, info.duration - 0.01)))
         awaitingFrame = true
+        seeking = true
+        frameWaitStarted = nil
+        seekGeneration = UUID()
+        let seekToken = seekGeneration
         let token = generation
         if state == .ended { state = .paused }
         player.seek(to: CMTime(seconds: value, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
             DispatchQueue.main.async {
-                guard let self, self.generation == token else { return }
+                guard let self, self.generation == token, self.seekGeneration == seekToken else { return }
+                self.seeking = false
+                self.awaitingFrame = true
                 self.onChange?()
             }
         }
@@ -204,13 +213,23 @@ final class MoviePlayer {
         scopedURL = nil
         wantsPlayback = false
         awaitingFrame = false
+        seeking = false
+        seekGeneration = UUID()
+        frameWaitStarted = nil
         state = .empty
         onChange?()
     }
 
     @discardableResult
     func updateFrame(hostTime: CFTimeInterval) -> MovieFrame? {
-        guard let output, let textureCache else { return nil }
+        guard let output, let textureCache, !seeking, isLoaded else { return nil }
+        if awaitingFrame || (wantsPlayback && player.timeControlStatus == .playing) {
+            if let start = frameWaitStarted, hostTime - start > 15 {
+                fail("O vídeo abriu, mas o iPhone não entregou novos quadros. Tente outro arquivo MP4/MOV.")
+                return nil
+            }
+            if frameWaitStarted == nil { frameWaitStarted = hostTime }
+        } else { frameWaitStarted = nil }
         let time = wantsPlayback ? output.itemTime(forHostTime: hostTime) : player.currentTime()
         guard output.hasNewPixelBuffer(forItemTime: time),
               let pixels = output.copyPixelBuffer(forItemTime: time, itemTimeForDisplay: nil) else { return nil }
@@ -221,6 +240,7 @@ final class MoviePlayer {
         let frame = MovieFrame(texture: texture, pixelBuffer: pixels, metalBuffer: metal)
         currentFrame = frame
         awaitingFrame = false
+        frameWaitStarted = nil
         retainedFrames.append(frame)
         if retainedFrames.count > 3 { retainedFrames.removeFirst() }
         return frame

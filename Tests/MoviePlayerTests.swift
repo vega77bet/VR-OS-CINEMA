@@ -16,6 +16,7 @@ final class MoviePlayerTests: XCTestCase {
             movie.updateFrame(hostTime: CACurrentMediaTime()) != nil
         }
         let first = try XCTUnwrap(movie.currentFrame)
+        let firstChecksum = checksum(first.pixelBuffer)
         XCTAssertEqual(first.texture.width, 1280)
         XCTAssertEqual(first.texture.height, 360)
         XCTAssertNotNil(movie.averageColor())
@@ -30,6 +31,8 @@ final class MoviePlayerTests: XCTestCase {
         movie.seek(to: 4)
         try await wait { abs(movie.currentTime - 4) < 0.1 }
         try await wait { movie.updateFrame(hostTime: CACurrentMediaTime()) != nil }
+        XCTAssertNotEqual(checksum(try XCTUnwrap(movie.currentFrame).pixelBuffer), firstChecksum,
+                          "Seeking must display a new decoded frame, not a frozen poster")
         XCTAssertFalse(movie.wantsPlayback, "Seeking paused video must not start audio")
         movie.seek(to: 99999)
         try await wait { movie.currentTime > 11 }
@@ -68,4 +71,18 @@ final class MoviePlayerTests: XCTestCase {
         }
     }
     private enum WaitError: Error { case timeout }
+
+    private func checksum(_ pixels: CVPixelBuffer) -> UInt64 {
+        CVPixelBufferLockBaseAddress(pixels, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(pixels, .readOnly) }
+        let bytes = CVPixelBufferGetBaseAddress(pixels)!.assumingMemoryBound(to: UInt8.self)
+        let stride = CVPixelBufferGetBytesPerRow(pixels)
+        var result: UInt64 = 0
+        for y in Swift.stride(from: 0, to: CVPixelBufferGetHeight(pixels), by: 13) {
+            for x in Swift.stride(from: 0, to: CVPixelBufferGetWidth(pixels) * 4, by: 17) {
+                result = result &* 31 &+ UInt64(bytes[y * stride + x])
+            }
+        }
+        return result
+    }
 }
