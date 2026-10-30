@@ -35,8 +35,8 @@ final class ProjectionTests: XCTestCase {
         settings.layout = .flat
         let rotated = CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: 1080, ty: 0)
         let point = settings.uv(CGPoint(x: 0, y: 0), rightEye: false, frame: CGSize(width: 1920, height: 1080), transform: rotated)
-        XCTAssertEqual(point.x, 0, accuracy: 0.00001)
-        XCTAssertEqual(point.y, 1, accuracy: 0.00001)
+        XCTAssertEqual(point.x, 0.5 / 1920, accuracy: 0.00001)
+        XCTAssertEqual(point.y, 1 - 0.5 / 1080, accuracy: 0.00001)
     }
 
     /// Render actual screen geometry and camera masks, then sample the image.

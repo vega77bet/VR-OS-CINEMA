@@ -78,10 +78,15 @@ struct ProjectionSettings {
         let shift = layout.isStereo ? min(max(alignment, -0.0075), 0.0075) : 0
         let margin = abs(shift)
         let x = margin + point.x * (1 - 2 * margin) + (rightEye ? -shift : shift)
-        let displayed = CGPoint(x: crop.minX + x * crop.width, y: crop.minY + point.y * crop.height)
         // Track orientation is independent of the packing format. Convert the
         // selected part of the displayed image back to the decoder's native UV.
         let bounds = CGRect(origin: .zero, size: frame).applying(transform)
+        // Linear filtering at an SBS/OU split must not sample a texel from the
+        // other eye. Keep the outer UVs at the centers of the selected texels.
+        let insetX = min(crop.width / 4, 0.5 / max(bounds.width, 1))
+        let insetY = min(crop.height / 4, 0.5 / max(bounds.height, 1))
+        let displayed = CGPoint(x: crop.minX + insetX + x * (crop.width - 2 * insetX),
+                                y: crop.minY + insetY + point.y * (crop.height - 2 * insetY))
         let oriented = CGPoint(x: bounds.minX + displayed.x * bounds.width, y: bounds.minY + displayed.y * bounds.height)
         let raw = oriented.applying(transform.inverted())
         return CGPoint(x: raw.x / max(frame.width, 1), y: raw.y / max(frame.height, 1))

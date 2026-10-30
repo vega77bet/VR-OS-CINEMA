@@ -300,7 +300,7 @@ final class CinemaViewController: UIViewController {
                 if dark && !movie.isLoaded && !UIAccessibility.isVoiceOverRunning { setHUDHidden(true) }
             }
         }
-        if movie.wantsPlayback && !hiddenHUD && now - lastInteraction > 5 && !UIAccessibility.isVoiceOverRunning {
+        if movie.wantsPlayback && !hiddenHUD && now - lastInteraction > 8 && !UIAccessibility.isVoiceOverRunning {
             setHUDHidden(true)
         }
         renderers.forEach { $0.setNeedsDisplay() }

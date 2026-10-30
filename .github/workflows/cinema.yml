@@ -55,7 +55,7 @@ jobs:
           retention-days: 30
       - name: Test native touch navigation
         id: navigation
-        timeout-minutes: 8
+        timeout-minutes: 12
         run: |
           set -o pipefail
           xcrun simctl shutdown "$CINEMA_SIMULATOR_ID" || true

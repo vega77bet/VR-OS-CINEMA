@@ -72,7 +72,7 @@ final class CinemaHUD: UIView {
         backdrop.translatesAutoresizingMaskIntoConstraints = false
         addSubview(backdrop)
         toolbar.axis = .horizontal
-        toolbar.spacing = compact ? 3 : 8
+        toolbar.spacing = compact ? 3 : 5
         toolbar.alignment = .center
         toolbar.distribution = .fill
         toolbar.translatesAutoresizingMaskIntoConstraints = false
@@ -93,18 +93,19 @@ final class CinemaHUD: UIView {
 
         var configuration = UIButton.Configuration.filled()
         configuration.title = compact ? "Luzes" : "Iniciar sessão"
-        configuration.image = UIImage(systemName: "moon.stars")
+        configuration.image = compact ? nil : UIImage(systemName: "moon.stars")
         configuration.imagePadding = 6
         configuration.baseBackgroundColor = Palette.pearl
         configuration.baseForegroundColor = Palette.ink
         configuration.cornerStyle = .capsule
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: compact ? 10 : 17, bottom: 10, trailing: compact ? 10 : 17)
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 9, leading: 10, bottom: 9, trailing: 10)
         configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var result = incoming
-            result.font = .systemFont(ofSize: compact ? 10 : 12, weight: .semibold)
+            result.font = .systemFont(ofSize: compact ? 9 : 11, weight: .semibold)
             return result
         }
         session.configuration = configuration
+        session.widthAnchor.constraint(equalToConstant: compact ? 62 : 112).isActive = true
         session.accessibilityLabel = "Iniciar sessão"
         session.accessibilityIdentifier = compact ? "session.toggle.eye" : "session.toggle"
         session.addAction(UIAction { [weak self] _ in self?.onAction?("session") }, for: .touchUpInside)
@@ -162,6 +163,9 @@ final class CinemaHUD: UIView {
             return attributes
         }
         button.configuration = configuration
+        let width = button.widthAnchor.constraint(equalToConstant: compact ? 52 : 58)
+        width.priority = UILayoutPriority(999) // Hidden arranged items must still collapse to zero.
+        width.isActive = true
         button.accessibilityLabel = label
         button.accessibilityIdentifier = compact ? "\(action).eye" : action
         button.addAction(UIAction { [weak self] _ in self?.onAction?(action) }, for: .touchUpInside)
@@ -179,7 +183,7 @@ final class CinemaHUD: UIView {
         let movieStatus = movie.state == .loading ? "ABRINDO FILME…" : (movieLoaded ? "\(projection.layout.title.uppercased()) · \(playback)" : nil)
         status.text = settled ? (movieStatus ?? (dark ? "SESSÃO VISUAL · LUZES APAGADAS · \(tracking)" : "SALA AURORA · \(tracking)")) : (dark ? "PREPARANDO A SALA…" : "ACENDENDO A SALA…")
         session.configuration?.title = compact ? (dark ? "Acender" : "Luzes") : (dark ? "Acender luzes" : "Iniciar sessão")
-        session.configuration?.image = UIImage(systemName: dark ? "sun.max" : "moon.stars")
+        session.configuration?.image = compact ? nil : UIImage(systemName: dark ? "sun.max" : "moon.stars")
         session.accessibilityLabel = dark ? "Acender luzes" : "Iniciar sessão"
         buttons["room"]?.tintColor = currentView == .room ? Palette.amber : Palette.pearl
         buttons["chair"]?.tintColor = currentView == .chair ? Palette.amber : Palette.pearl

@@ -8,7 +8,7 @@ import CoreText
 let destination = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Cinema/Resources/Aurora-FSBS.mp4"
 let url = URL(fileURLWithPath: destination)
 try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-let width = 1280, height = 360, fps: Int32 = 24, count = 288
+let width = 1280, height = 360, fps: Int32 = 24, count = 720
 let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
 let input = AVAssetWriterInput(mediaType: .video, outputSettings: [AVVideoCodecKey: AVVideoCodecType.h264,
     AVVideoWidthKey: width, AVVideoHeightKey: height,

@@ -28,7 +28,7 @@ curvo e reprodução local 2D/3D estereoscópica. Versão 0.2.0, build 4.
   substituição/fechamento de filme e tratamento de erros e interrupções de áudio.
 - Clássico, Portal (telão 10% maior), Sala escura, luz ambiente suave baseada
   na cor real dos frames, telão plano/curvo, brilho, distância e IPD de 58–72 mm.
-- Teste 3D original de 12 segundos gerado por projeção estereoscópica no build.
+- Teste 3D original de 30 segundos gerado por projeção estereoscópica no build.
 - A sugestão de formato usa tags explícitas do nome (FSBS, HSBS, HOU etc.);
   arquivos sem indicação abrem em 2D e pedem confirmação manual em Filme e 3D.
 - Texturas e arte Aurora originais geradas em código, funcionamento inteiramente offline.
