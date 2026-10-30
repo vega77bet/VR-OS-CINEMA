@@ -149,7 +149,7 @@ final class CinemaHUD: UIView {
     private func addButton(_ action: String, symbol: String, label: String, short: String) {
         let button = UIButton(type: .system)
         var configuration = UIButton.Configuration.plain()
-        configuration.title = compact ? short : label
+        configuration.title = short
         configuration.image = UIImage(systemName: symbol)
         configuration.imagePadding = 4
         configuration.imagePlacement = .top
@@ -189,11 +189,11 @@ final class CinemaHUD: UIView {
         buttons["chair"]?.tintColor = currentView == .chair ? Palette.amber : Palette.pearl
         let motionButton = buttons["motion"]
         motionButton?.tintColor = motionEnabled && motionAvailable ? Palette.amber : Palette.pearl
-        motionButton?.configuration?.title = motionEnabled && motionAvailable ? "Movimento" : "Ativar"
+        motionButton?.configuration?.title = motionEnabled && motionAvailable ? "Sensor" : "Ativar"
         motionButton?.accessibilityLabel = motionEnabled && motionAvailable ? "Desligar movimento da cabeça" : "Ativar movimento da cabeça"
         let movieButton = buttons["movie"]
         movieButton?.tintColor = movieLoaded ? Palette.amber : Palette.pearl
-        movieButton?.configuration?.title = movieLoaded ? (moviePlaying ? "Pausar" : "Reproduzir") : "Filme"
+        movieButton?.configuration?.title = movieLoaded ? (moviePlaying ? "Pausar" : "Play") : "Filme"
         movieButton?.configuration?.image = UIImage(systemName: movieLoaded ? (moviePlaying ? "pause.fill" : "play.fill") : "film")
         movieButton?.accessibilityLabel = movieLoaded ? (moviePlaying ? "Pausar filme" : "Reproduzir filme") : "Escolher filme"
         movieButton?.isEnabled = movie.state != .loading
