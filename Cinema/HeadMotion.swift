@@ -34,6 +34,8 @@ final class HeadMotionController {
     private var referenceAttitude: CMAttitude?
     private var running = false
     private var orientation: UIInterfaceOrientation = .landscapeLeft
+    private var pendingSample: HeadMotionSample?
+    private var deliveryScheduled = false
 
     var onSample: ((HeadMotionSample) -> Void)?
 
@@ -77,6 +79,7 @@ final class HeadMotionController {
         lock.lock()
         running = false
         referenceAttitude = nil
+        pendingSample = nil
         lock.unlock()
     }
 
@@ -107,9 +110,33 @@ final class HeadMotionController {
                                               roll: relative.roll,
                                               yaw: relative.yaw,
                                               interfaceOrientation: currentOrientation)
+        enqueue(sample)
+    }
+
+    /// Core Motion can produce more samples than the renderer can consume.
+    /// Keep only the newest pose and schedule one main-thread delivery so a
+    /// slow simulator or a busy scene never builds an unbounded callback queue.
+    private func enqueue(_ sample: HeadMotionSample) {
+        lock.lock()
+        pendingSample = sample
+        guard !deliveryScheduled else {
+            lock.unlock()
+            return
+        }
+        deliveryScheduled = true
+        lock.unlock()
+
         DispatchQueue.main.async { [weak self] in
-            guard self?.isRunning == true else { return }
-            self?.onSample?(sample)
+            guard let self else { return }
+            self.lock.lock()
+            let latest = self.pendingSample
+            self.pendingSample = nil
+            self.deliveryScheduled = false
+            let isActive = self.running
+            self.lock.unlock()
+
+            guard isActive, let latest else { return }
+            self.onSample?(latest)
         }
     }
 }
