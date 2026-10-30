@@ -18,10 +18,13 @@ enum HeadMotionMapper {
                        interfaceOrientation: UIInterfaceOrientation) -> HeadMotionSample {
         switch interfaceOrientation {
         case .landscapeRight:
-            return HeadMotionSample(yaw: -pitch, pitch: roll, roll: yaw)
+            // SceneKit's positive X rotation makes the view look downward.
+            // Core Motion reports the opposite sign for the viewer's vertical
+            // look direction, so invert the mapped pitch in both orientations.
+            return HeadMotionSample(yaw: -pitch, pitch: -roll, roll: yaw)
         default:
             // landscapeLeft is the default orientation used by the viewer.
-            return HeadMotionSample(yaw: pitch, pitch: -roll, roll: yaw)
+            return HeadMotionSample(yaw: pitch, pitch: roll, roll: yaw)
         }
     }
 }
