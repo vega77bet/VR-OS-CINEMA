@@ -18,15 +18,18 @@ poltronas originais Orion, telão curvo e iluminação de início de sessão.
 - Prévia binocular com câmeras paralelas separadas por 64 mm e HUD dentro de cada olho.
 - No modo VR Box, o celular acompanha yaw, pitch e roll (3DoF), e o botão Centralizar
   define a direção atual como frente.
+- Botão Filme: escolhe um vídeo do app Arquivos, projeta-o no telão curvo nos dois
+  olhos e permite reproduzir/pausar com áudio pelo próprio iPhone.
 - Texturas e arte Aurora originais geradas em código, funcionamento inteiramente offline.
 - Ícone próprio, respeito a Reduzir Movimento e renderização sob demanda: a sala
   estática não mantém um relógio de animação ativo. O render também para ao sair do aplicativo.
 
 ## Limites desta etapa
 
-O botão Iniciar sessão demonstra o escurecimento e troca a arte do telão. **Ainda não
-reproduz filmes.** Câmera, Joy-Con, seleção por olhar, calibração óptica/distorção das
-lentes e ajustes de distância entre olhos ficam para a próxima etapa funcional. O
+O botão Iniciar sessão demonstra o escurecimento quando não há filme carregado. O
+player atual reproduz vídeos locais escolhidos pelo app Arquivos; ele ainda não baixa
+catálogo pela internet nem implementa streaming. Câmera, Joy-Con, seleção por olhar,
+calibração óptica/distorção das lentes e ajustes de distância entre olhos ficam para a próxima etapa funcional. O
 movimento implementado é rotacional (3DoF): o VR Box não fornece deslocamento físico
 pela sala. O alinhamento e o conforto dependem de validação no aparelho real.
 

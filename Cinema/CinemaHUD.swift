@@ -46,6 +46,7 @@ final class CinemaHUD: UIView {
         addButton("chair", symbol: "chair.lounge", label: "Ver poltrona", short: "Poltrona")
         addButton("height", symbol: "arrow.up.and.down", label: "Altura", short: "Altura")
         addButton("motion", symbol: "gyroscope", label: "Movimento", short: "Movimento")
+        addButton("movie", symbol: "film", label: "Filme", short: "Filme")
         addButton("stereo", symbol: "view.3d", label: "VR Box", short: "Sair VR")
 
         var configuration = UIButton.Configuration.filled()
@@ -117,9 +118,11 @@ final class CinemaHUD: UIView {
     }
 
     func update(dark: Bool, settled: Bool, currentView: RoomView,
-                motionEnabled: Bool, motionAvailable: Bool) {
+                motionEnabled: Bool, motionAvailable: Bool,
+                movieLoaded: Bool, moviePlaying: Bool) {
         let tracking = motionEnabled && motionAvailable ? "MOVIMENTO DA CABEÇA" : "ARRASTE PARA OLHAR"
-        status.text = settled ? (dark ? "SESSÃO VISUAL · LUZES APAGADAS · \(tracking)" : "SALA AURORA · \(tracking)") : (dark ? "PREPARANDO A SALA…" : "ACENDENDO A SALA…")
+        let movieStatus = movieLoaded ? (moviePlaying ? "FILME REPRODUZINDO" : "FILME PAUSADO") : nil
+        status.text = settled ? (movieStatus ?? (dark ? "SESSÃO VISUAL · LUZES APAGADAS · \(tracking)" : "SALA AURORA · \(tracking)")) : (dark ? "PREPARANDO A SALA…" : "ACENDENDO A SALA…")
         session.configuration?.title = compact ? (dark ? "Acender" : "Luzes") : (dark ? "Acender luzes" : "Iniciar sessão")
         session.configuration?.image = UIImage(systemName: dark ? "sun.max" : "moon.stars")
         session.accessibilityLabel = dark ? "Acender luzes" : "Iniciar sessão"
@@ -129,6 +132,11 @@ final class CinemaHUD: UIView {
         motionButton?.tintColor = motionEnabled && motionAvailable ? Palette.amber : Palette.pearl
         motionButton?.configuration?.title = motionEnabled && motionAvailable ? "Movimento" : "Ativar"
         motionButton?.accessibilityLabel = motionEnabled && motionAvailable ? "Desligar movimento da cabeça" : "Ativar movimento da cabeça"
+        let movieButton = buttons["movie"]
+        movieButton?.tintColor = movieLoaded ? Palette.amber : Palette.pearl
+        movieButton?.configuration?.title = movieLoaded ? (moviePlaying ? "Pausar" : "Reproduzir") : (compact ? "Filme" : "Escolher filme")
+        movieButton?.configuration?.image = UIImage(systemName: movieLoaded && moviePlaying ? "pause.fill" : "film")
+        movieButton?.accessibilityLabel = movieLoaded ? (moviePlaying ? "Pausar filme" : "Reproduzir filme") : "Escolher filme"
     }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {

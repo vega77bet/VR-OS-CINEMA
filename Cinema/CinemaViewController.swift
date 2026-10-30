@@ -1,5 +1,7 @@
 import UIKit
 import SceneKit
+import AVFoundation
+import UniformTypeIdentifiers
 
 final class CinemaViewController: UIViewController {
     let cinema = CinemaScene()
@@ -18,6 +20,8 @@ final class CinemaViewController: UIViewController {
     private let headMotion = HeadMotionController()
     private var motionEnabled = true
     private var motionAvailable = false
+    private var moviePlayer: AVPlayer?
+    private var movieEndObserver: NSObjectProtocol?
     private let phase = UILabel()
 
     override var prefersStatusBarHidden: Bool { true }
@@ -56,6 +60,8 @@ final class CinemaViewController: UIViewController {
 
     deinit {
         displayLink?.invalidate()
+        if let movieEndObserver { NotificationCenter.default.removeObserver(movieEndObserver) }
+        moviePlayer?.pause()
         headMotion.stop()
         NotificationCenter.default.removeObserver(self)
     }
@@ -128,6 +134,12 @@ final class CinemaViewController: UIViewController {
                 motionEnabled = true
                 startMotion()
             }
+        case "movie":
+            if moviePlayer == nil {
+                chooseMovie()
+            } else {
+                toggleMoviePlayback()
+            }
         case "session":
             dark.toggle()
             lastSettled = false
@@ -188,8 +200,56 @@ final class CinemaViewController: UIViewController {
     private func updateHUD() {
         huds.forEach {
             $0.update(dark: dark, settled: lastSettled, currentView: cinema.view,
-                      motionEnabled: motionEnabled, motionAvailable: motionAvailable)
+                      motionEnabled: motionEnabled, motionAvailable: motionAvailable,
+                      movieLoaded: moviePlayer != nil,
+                      moviePlaying: moviePlayer?.timeControlStatus == .playing)
         }
+    }
+
+    private func chooseMovie() {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.movie], asCopy: true)
+        picker.delegate = self
+        picker.allowsMultipleSelection = false
+        present(picker, animated: true)
+    }
+
+    private func toggleMoviePlayback() {
+        guard let moviePlayer else { return }
+        if moviePlayer.timeControlStatus == .playing {
+            moviePlayer.pause()
+            updateHUD()
+            renderers.forEach { $0.setNeedsDisplay() }
+            return
+        }
+        // Starting a movie also starts the cinema session, fading the house
+        // lights down before the first frame becomes the focus of the room.
+        if !dark {
+            dark = true
+            lastSettled = false
+            transition.move(to: 1, at: CACurrentMediaTime(), reducedMotion: UIAccessibility.isReduceMotionEnabled)
+            phase.text = "transition"
+            startAnimationClock()
+        }
+        moviePlayer.play()
+        updateHUD()
+        renderers.forEach { $0.setNeedsDisplay() }
+    }
+
+    private func installMovie(url: URL) {
+        if let movieEndObserver { NotificationCenter.default.removeObserver(movieEndObserver) }
+        moviePlayer?.pause()
+        let player = AVPlayer(url: url)
+        player.actionAtItemEnd = .pause
+        moviePlayer = player
+        cinema.setScreenVideo(player)
+        movieEndObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime, object: player.currentItem, queue: .main
+        ) { [weak self] _ in
+            self?.updateHUD()
+            self?.renderers.forEach { $0.setNeedsDisplay() }
+        }
+        updateHUD()
+        renderers.forEach { $0.setNeedsDisplay() }
     }
 
     @objc private func tick(_ link: CADisplayLink) {
@@ -241,4 +301,15 @@ final class CinemaViewController: UIViewController {
         init(owner: CinemaViewController) { self.owner = owner }
         @objc func fire(_ link: CADisplayLink) { owner?.tick(link) }
     }
+}
+
+extension CinemaViewController: UIDocumentPickerDelegate {
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard let url = urls.first else { return }
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback, options: [])
+        try? AVAudioSession.sharedInstance().setActive(true)
+        installMovie(url: url)
+    }
+
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {}
 }

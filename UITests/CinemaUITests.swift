@@ -12,6 +12,7 @@ final class CinemaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["session.toggle"].isHittable)
         XCTAssertTrue(app.buttons["seat"].isHittable)
         XCTAssertTrue(app.buttons["motion"].isHittable)
+        XCTAssertTrue(app.buttons["movie"].isHittable)
         app.buttons["motion"].tap()
         app.buttons["motion"].tap()
         attach(app, "06-app-sala")

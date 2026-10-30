@@ -1,6 +1,7 @@
 import Foundation
 
-/// All distances are metres. This is a visual room, not a video player yet.
+/// All distances are metres. Video playback is projected onto the screen
+/// material; the room remains fully usable when no movie is selected.
 enum CinemaLayout {
     static let screenWidth = 19.6
     static let screenHeight = 7.6

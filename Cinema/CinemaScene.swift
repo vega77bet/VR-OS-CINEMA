@@ -276,4 +276,10 @@ final class CinemaScene {
     func showSessionArtwork(_ active: Bool) {
         materials.screen.emission.contents = active ? materials.sessionArtwork : materials.loungeArtwork
     }
+
+    /// SceneKit can use AVPlayer directly as a material source. Both eye
+    /// renderers then sample the same movie frame.
+    func setScreenVideo(_ player: Any?) {
+        materials.screen.emission.contents = player ?? (darkness > 0.5 ? materials.sessionArtwork : materials.loungeArtwork)
+    }
 }
