@@ -28,6 +28,7 @@ jobs:
           swift Tools/MakeDemo.swift
           xcodegen generate
       - name: Build iPhone application
+        id: build
         run: |
           set -o pipefail
           xcodebuild -project VROSCinema.xcodeproj -scheme VROSCinema -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tee build.log
@@ -89,11 +90,13 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - name: Package unsigned preview
+        if: ${{ always() && steps.build.outcome == 'success' }}
         run: |
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/VROSCinema.app Payload/
           zip -qry VR-OS-Cinema-0.2.0-3D-unsigned.ipa Payload
       - name: Upload iPhone preview
+        if: ${{ always() && steps.build.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: VR-OS-Cinema-3D-IPA
