@@ -88,6 +88,7 @@ final class CinemaHUD: UIView {
         addButton("height", symbol: "arrow.up.and.down", label: "Altura", short: "Altura")
         addButton("motion", symbol: "gyroscope", label: "Movimento", short: "Movimento")
         addButton("movie", symbol: "film", label: "Filme", short: "Filme")
+        addButton("youtube", symbol: "play.rectangle.fill", label: "YouTube", short: "YouTube")
         addButton("settings", symbol: "slider.horizontal.3", label: "Filme e 3D", short: "3D")
         addButton("stereo", symbol: "view.3d", label: "VR Box", short: "Sair VR")
 

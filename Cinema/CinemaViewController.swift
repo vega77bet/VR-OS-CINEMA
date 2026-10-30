@@ -169,6 +169,7 @@ final class CinemaViewController: UIViewController {
                 if movie.wantsPlayback { movie.pause() }
                 else { if !dark { setDark(true) }; movie.play() }
             } else { chooseMovie() }
+        case "youtube": showYouTube()
         case "settings": showMovieSettings()
         case "back": movie.seek(to: movie.currentTime - 10)
         case "forward": movie.seek(to: movie.currentTime + 10)
@@ -244,6 +245,16 @@ final class CinemaViewController: UIViewController {
         picker.delegate = self
         picker.allowsMultipleSelection = false
         present(picker, animated: true)
+    }
+
+    private func showYouTube() {
+        movie.pause()
+        setHUDHidden(false)
+        let browser = YouTubeViewController()
+        let navigation = UINavigationController(rootViewController: browser)
+        navigation.overrideUserInterfaceStyle = .dark
+        navigation.modalPresentationStyle = .fullScreen
+        present(navigation, animated: true)
     }
 
     private func showMovieSettings() {
